@@ -1,0 +1,119 @@
+version: v0.4
+project:
+  name: Rationality of the moduli space of curves of genus nine
+  description: 'Formalization of Theorem 1.1 of Rationality of the Moduli Space of Curves of Genus Nine:
+    the coarse moduli space of smooth, connected, unpointed complex curves of genus nine is rational over
+    C. The proof constructs a classifier on all original scheme bases and curve families, proves its categorical
+    and geometric coarse-moduli properties, and gives a dense rational open of dimension 24 together with
+    a coefficient-preserving identification of the same chosen space''s structural function field with
+    C(t1,...,t24).'
+  authors:
+  - Vlado Vojdanovski
+  license: Apache-2.0
+  responsible_maintainers:
+  - Vlado Vojdanovski
+classification:
+  arxiv:
+  - math.AG
+  msc2020:
+  - 14H10
+  - 14E08
+  - 14L30
+sources:
+- title: Rationality of the moduli space of curves of genus nine
+  authors:
+  - Vlado Vojdanovski
+  id: sha256:024b7b64a33ccccd578888d0b433357414fbe9c6e0510ef48151852ffae53199
+  type: paper
+  location: Theorem 1.1, page 1, in the exact eight-page paper supplied with this formalization.
+  relationship: formalizes
+  note: The SHA256 identifies the exact source PDF bytes. The accompanying proof-source licence and the
+    paper's copyright/provenance are recorded separately.
+related_formalizations:
+- id: https://github.com/AxiomMath/Stacks/tree/c496df0d9beea9deaeabcea8492605f9a0a2313b
+  relationship: builds-on
+  note: Native algebraic geometry, curve families, stacks and independently constructed coarse moduli
+    spaces used on the proof side; Apache-2.0.
+- id: https://github.com/leanprover-community/mathlib4/tree/56a005855ea17e0b0958f73ec801ae140b0a1679
+  relationship: builds-on
+  note: Canonical statement definitions and algebraic, geometric, categorical and field-theoretic proof
+    infrastructure; Apache-2.0.
+- id: https://github.com/openai/math/tree/7ef5c0cc5ca4b0e072b7a050fca09ab24bc6fa3a
+  relationship: adapts
+  note: Selected projective-chart, projective function-field and Proj naturality sources were ported and
+    adapted in the actual terminal proof closure. Exact file hashes and modification notices are retained;
+    Apache-2.0.
+status:
+  scope: The full literal-complex algebraic-space formulation of paper Theorem 1.1 is proved. M9Native.M9PaperResult.paper_goal
+    has no hypotheses and quantifies over the original genus-nine family moduli problem, including arbitrary
+    original test schemes and nonschematic family totals. M9Native.M9PaperResult.exists_actual_package
+    also supplies the actual coarse, variety, rational-open and structural complex function-field package.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms:
+  - propext
+  - Classical.choice
+  - Quot.sound
+  main_results:
+  - declaration: M9Rationality.main_result
+    file: Solution.lean
+    sorry_count: 0
+    axioms:
+    - propext
+    - Classical.choice
+    - Quot.sound
+  - declaration: M9Native.M9PaperResult.paper_goal
+    file: M9StacksIntegration/M9PaperResult.lean
+    sorry_count: 0
+    axioms:
+    - propext
+    - Classical.choice
+    - Quot.sound
+  - declaration: M9Native.M9PaperResult.exists_actual_package
+    file: M9StacksIntegration/M9PaperResult.lean
+    sorry_count: 0
+    axioms:
+    - propext
+    - Classical.choice
+    - Quot.sound
+automation:
+  methods:
+  - method: agent
+    framework: OpenAI Codex
+    tool_setup: User-directed Codex agents developed Lean proofs, coordinated separate proof tasks, inspected
+      source semantics and provenance, and ran local direct-kernel and fresh typed-interface/axiom audits.
+  notes: The development used coordinated Codex agent work and explicit source/object/receipt bindings.
+    Material model, framework and tool roles are credited here; author and maintainer responsibility is
+    assigned to the named human.
+fidelity:
+  divergences: The coarse moduli object is represented as an ordinary fppf algebraic space with its full
+    original-family classifier and all-algebraic-space categorical universal property. Rationality is
+    witnessed by a common nonempty dense open with affine 24-space over the literal complex field; the
+    same chosen space has a structural C-algebra function-field equivalence. The statement is the fixed-complex-field
+    endpoint, without an additional generic-universe or global scheme-representability assertion. The
+    numbered omissions and replacement arguments are documented in LEAN_ERRATA.md.
+review:
+  status: agent-reviewed
+alignment:
+  namespace: M9Native.M9PaperResult
+  statements:
+  - source: 'Theorem 1.1, page 1: rationality of M9 over C'
+    lean: M9Rationality.main_result
+    module: Solution
+    status: proved
+    note: The paired entry point proves the same unconditional literal-complex coarse-moduli statement.
+  - source: 'Theorem 1.1, page 1: rationality of M9 over C'
+    lean: M9Native.M9PaperResult.paper_goal
+    module: M9StacksIntegration.M9PaperResult
+    status: proved
+    note: Unconditional RationalCoarseSpaceGoal over the literal complex field, using the actual original
+      smooth connected unpointed genus-nine family moduli problem.
+  - source: 'Theorem 1.1: equivalent structural function-field formulation'
+    lean: M9Native.M9PaperResult.exists_actual_package
+    module: M9StacksIntegration.M9PaperResult
+    status: proved
+    note: Coarse classification, variety, rational open and coefficient-preserving structural complex
+      function-field rationality for the same chosen moduli space.
+acknowledgements: Lean and Mathlib contributors; AxiomMath/Stacks contributors; the OpenAI math source
+  contributors whose selected Apache-2.0 projective geometry proofs were adapted; OpenAI Codex tooling.
+  Exact revisions and per-file attribution notices are retained in the provenance record.
