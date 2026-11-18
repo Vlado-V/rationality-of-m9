@@ -98,6 +98,65 @@ def identityJacobian : Matrix (Fin 8) (Fin 8) K :=
       0,0,0,0,0,0,2,0;
       0,0,0,0,-2,0,2,0] : Matrix (Fin 8) (Fin 8) K).transpose
 
+/-- A symbolic first-order normalized frame, with all eight tangent entries retained. -/
+private def tangentFrame (v : Fin 8 → K) : Mat3 (TrivSqZeroExt K K) :=
+  !![⟨1,0⟩,⟨0,v 0⟩,⟨0,v 1⟩;
+     ⟨0,v 2⟩,⟨1,v 3⟩,⟨0,v 4⟩;
+     ⟨0,v 5⟩,⟨0,v 6⟩,⟨1,v 7⟩]
+
+/-- The adjugate of I+εH is I+ε(tr(H)I-H), proved once for every direction. -/
+private theorem tangentFrame_adjugate (v : Fin 8 → K) :
+    (tangentFrame K v).adjugate =
+      !![⟨1,v 3+v 7⟩,⟨0,-v 0⟩,⟨0,-v 1⟩;
+         ⟨0,-v 2⟩,⟨1,v 7⟩,⟨0,-v 4⟩;
+         ⟨0,-v 5⟩,⟨0,-v 6⟩,⟨1,v 3⟩] := by
+  apply Matrix.ext
+  intro a b
+  apply TrivSqZeroExt.ext <;> fin_cases a <;> fin_cases b <;>
+    simp [tangentFrame,Matrix.adjugate_fin_three,smul_eq_mul] <;> ring
+
+/-- The entire first-order quotient matrix, shared by all eight Jacobian directions. -/
+private theorem quotient_tangentFrame (v : Fin 8 → K) :
+    quotientMatrix (tangentFrame K v) =
+      !![⟨1,2*v 3+2*v 7⟩,⟨-1,-2*v 7⟩,⟨0,0⟩,
+           ⟨0,2*v 2-2*v 0⟩,⟨0,-2*v 1⟩,⟨0,2*v 4⟩;
+         ⟨0,0⟩,⟨1,2*v 7⟩,⟨-1,-2*v 3⟩,
+           ⟨0,-2*v 2⟩,⟨0,2*v 5⟩,⟨0,2*v 6-2*v 4⟩] := by
+  rw [quotientMatrix,tangentFrame_adjugate]
+  apply Matrix.ext
+  intro a b
+  apply TrivSqZeroExt.ext <;> fin_cases a <;> fin_cases b <;>
+    simp [congruence,symCoordinates,symMatrix,standardQuotient,
+      Matrix.mul_apply,Matrix.vecMul,dotProduct,Fin.sum_univ_succ,Pi.single_apply,
+      smul_eq_mul] <;> ring
+
+private def tangentPivot (v : Fin 8 → K) : Matrix (Fin 2) (Fin 2) (TrivSqZeroExt K K) :=
+  (quotientMatrix (tangentFrame K v)).submatrix id (Fin.castLEEmb (by decide : 2 ≤ 6))
+
+private def tangentNumerator (v : Fin 8 → K) (j : Fin 8) : TrivSqZeroExt K K :=
+  ((tangentPivot K v).adjugate * quotientMatrix (tangentFrame K v))
+    (coordinatePair j).2 (Fin.natAdd 2 (coordinatePair j).1)
+
+/-- The first-order quotient rule is computed as one linear map on an arbitrary tangent. -/
+private theorem tangent_jacobian (v : Fin 8 → K) (j : Fin 8) :
+    (tangentPivot K v).det.fst * (tangentNumerator K v j).snd -
+        (tangentNumerator K v j).fst * (tangentPivot K v).det.snd =
+      (![2*v 7,-2*v 3+2*v 7,-2*v 0,-2*v 2,
+        -2*v 1+2*v 5,2*v 5,2*v 6,2*v 6-2*v 4] : Fin 8 → K) j := by
+  fin_cases j <;>
+    simp [tangentNumerator,tangentPivot,quotient_tangentFrame,
+      Matrix.adjugate_fin_two,Matrix.det_fin_two,Matrix.mul_apply,Fin.sum_univ_succ,
+      coordinatePair,finProdFinEquiv,Fin.divNat,Fin.modNat,Fin.natAdd,smul_eq_mul] <;> ring
+
+/-- Actual polynomial dual evaluation is this same symbolic frame in a basis direction. -/
+private theorem dualFrame_tangent (i : Fin 8) :
+    dualFrame K i = tangentFrame K (fun j => if i = j then 1 else 0) := by
+  apply Matrix.ext
+  intro a b
+  apply TrivSqZeroExt.ext <;> fin_cases a <;> fin_cases b <;>
+    simp [dualFrame,tangentFrame,normalizedFrame,atIdentityDual,atIdentity,
+      identityCoefficients,Pi.single_apply,eq_comm]
+
 /-- Every Jacobian entry is checked from the literal polynomial quotient formula. -/
 theorem jacobian_atIdentity :
     (jacobianNumerator K).map (atIdentity K) = identityJacobian K := by
@@ -108,12 +167,11 @@ theorem jacobian_atIdentity :
   change (atIdentityDual K i (denominator K)).fst * (atIdentityDual K i (numerator K j)).snd -
     (atIdentityDual K i (numerator K j)).fst * (atIdentityDual K i (denominator K)).snd = _
   rw [denominator_dual,numerator_dual]
-  fin_cases i <;> fin_cases j <;>
-    norm_num [dualPivot,dualFrame,atIdentityDual,
-      quotientMatrix,congruence,symCoordinates,symMatrix,normalizedFrame,
-      Matrix.adjugate_fin_three,Matrix.adjugate_fin_two,standardQuotient,Matrix.det_fin_two,
-      Matrix.mul_apply,Matrix.vecMul,dotProduct,Fin.sum_univ_succ,Pi.single_apply,atIdentity,identityCoefficients,
-      identityJacobian,smul_eq_mul,coordinatePair,finProdFinEquiv,Fin.divNat,Fin.modNat,Fin.natAdd]
+  simp only [dualPivot,dualFrame_tangent]
+  change (tangentPivot K _).det.fst * (tangentNumerator K _ j).snd -
+    (tangentNumerator K _ j).fst * (tangentPivot K _).det.snd = _
+  rw [tangent_jacobian]
+  fin_cases i <;> fin_cases j <;> norm_num [identityJacobian]
 
 variable [CharZero K]
 

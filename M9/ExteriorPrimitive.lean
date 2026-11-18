@@ -469,11 +469,44 @@ theorem wedge_ιMulti (u v : Fin 3 → V K) :
   rw [wedge_ιMulti]
   simp [volumeCoordinate]
 
-@[simp] theorem ambientPairing_a_b : ambientPairing K (a K) (b K) = 1 := by
-  simp only [a, b, wedge3, ambientPairing_ιMulti]
-  norm_num [e, f, basisVector, eIndex, fIndex, Matrix.det_succ_row_zero,
-    Matrix.submatrix, Fin.sum_univ_succ, Fin.append, Fin.addCases, Fin.succAbove, Pi.single_apply]
 
+/- Scratch-only optimization helpers: exact original Gram identities,
+using repeated rows or permutation determinants instead of Laplace trees. -/
+private theorem pairing_zero_of_repeated_row (u v : Fin 3 → V K)
+    (i j : Fin 6) (hne : i ≠ j)
+    (hrow : Fin.append u v i = Fin.append u v j) :
+    ambientPairing K (exteriorPower.ιMulti K 3 u) (exteriorPower.ιMulti K 3 v) = 0 := by
+  rw [ambientPairing_ιMulti]
+  exact Matrix.det_zero_of_row_eq hne hrow
+
+private theorem cyclic_pairs_intersect (j l : Fin 3) :
+    nextOne j = nextOne l ∨ nextOne j = nextTwo l ∨
+      nextTwo j = nextOne l ∨ nextTwo j = nextTwo l := by
+  fin_cases j <;> fin_cases l <;> decide
+
+private theorem cyclic_cases (i j : Fin 3) :
+    i = j ∨ i = nextOne j ∨ i = nextTwo j := by
+  fin_cases i <;> fin_cases j <;> decide
+
+private theorem left_basis_tuple : (![e K 0, e K 1, e K 2] : Fin 3 → V K) = e K := by
+  funext i
+  fin_cases i <;> rfl
+
+private theorem right_basis_tuple : (![f K 0, f K 1, f K 2] : Fin 3 → V K) = f K := by
+  funext i
+  fin_cases i <;> rfl
+
+@[simp] theorem ambientPairing_a_b : ambientPairing K (a K) (b K) = 1 := by
+
+  simp only [a, b, wedge3, ambientPairing_ιMulti]
+  have hM : (Matrix.of fun i j : Fin 6 => Fin.append
+      ![e K 0, e K 1, e K 2] ![f K 0, f K 1, f K 2] i j) =
+        (1 : Matrix (Fin 6) (Fin 6) K) := by
+    ext i j
+    fin_cases i <;>
+      simp [Fin.append, Fin.addCases, e, f, basisVector, eIndex, fIndex,
+        Matrix.one_apply, Pi.single_apply, eq_comm]
+  rw [hM, Matrix.det_one]
 
 /-- The ordered top wedge used in the manuscript. -/
 def volume : ⋀[K]^6 (V K) := exteriorPower.wedge K (V K) 3 3 (a K) (b K)
@@ -580,40 +613,55 @@ def primitiveBasis [CharZero K] : Basis PrimitiveBasisIndex K (Primitive K) :=
   simp [primitiveBasis]
 
 @[simp] theorem ambientPairing_a_a : ambientPairing K (a K) (a K) = 0 := by
-  simp only [a, wedge3, ambientPairing_ιMulti]
-  norm_num [e, f, basisVector, eIndex, fIndex, Matrix.det_succ_row_zero,
-    Matrix.submatrix, Fin.sum_univ_succ, Fin.append, Fin.addCases, Fin.succAbove, Pi.single_apply]
+
+  change ambientPairing K (exteriorPower.ιMulti K 3 ![e K 0,e K 1,e K 2])
+    (exteriorPower.ιMulti K 3 ![e K 0,e K 1,e K 2]) = 0
+  exact pairing_zero_of_repeated_row K _ _ 0 3 (by decide) rfl
+
 @[simp] theorem ambientPairing_b_b : ambientPairing K (b K) (b K) = 0 := by
-  simp only [b, wedge3, ambientPairing_ιMulti]
-  norm_num [e, f, basisVector, eIndex, fIndex, Matrix.det_succ_row_zero,
-    Matrix.submatrix, Fin.sum_univ_succ, Fin.append, Fin.addCases, Fin.succAbove, Pi.single_apply]
+
+  change ambientPairing K (exteriorPower.ιMulti K 3 ![f K 0,f K 1,f K 2])
+    (exteriorPower.ιMulti K 3 ![f K 0,f K 1,f K 2]) = 0
+  exact pairing_zero_of_repeated_row K _ _ 0 3 (by decide) rfl
 
 set_option maxHeartbeats 4000000
 
 @[simp] theorem ambientPairing_a_q (i j : Fin 3) : ambientPairing K (a K) (q K i j) = 0 := by
-  fin_cases i <;> fin_cases j <;>
-    simp only [a, q, wedge3, ambientPairing_ιMulti] <;>
-    norm_num [e, f, basisVector, eIndex, fIndex, nextOne, nextTwo,
-      Matrix.det_succ_row_zero, Matrix.submatrix, Fin.sum_univ_succ, Fin.append,
-      Fin.addCases, Fin.succAbove, Pi.single_apply]
+
+  change ambientPairing K (exteriorPower.ιMulti K 3 ![e K 0,e K 1,e K 2])
+    (exteriorPower.ιMulti K 3 ![e K i,f K (nextOne j),f K (nextTwo j)]) = 0
+  apply pairing_zero_of_repeated_row K _ _ (i.castAdd 3) 3
+  · fin_cases i <;> decide
+  · rw [Fin.append_left, left_basis_tuple]
+    rfl
+
 @[simp] theorem ambientPairing_a_p (i j : Fin 3) : ambientPairing K (a K) (p K i j) = 0 := by
-  fin_cases i <;> fin_cases j <;>
-    simp only [a, p, wedge3, ambientPairing_ιMulti] <;>
-    norm_num [e, f, basisVector, eIndex, fIndex, nextOne, nextTwo,
-      Matrix.det_succ_row_zero, Matrix.submatrix, Fin.sum_univ_succ, Fin.append,
-      Fin.addCases, Fin.succAbove, Pi.single_apply]
+
+  change ambientPairing K (exteriorPower.ιMulti K 3 ![e K 0,e K 1,e K 2])
+    (exteriorPower.ιMulti K 3 ![f K i,e K (nextOne j),e K (nextTwo j)]) = 0
+  apply pairing_zero_of_repeated_row K _ _ ((nextOne j).castAdd 3) 4
+  · fin_cases j <;> decide
+  · rw [Fin.append_left, left_basis_tuple]
+    rfl
+
 @[simp] theorem ambientPairing_b_q (i j : Fin 3) : ambientPairing K (b K) (q K i j) = 0 := by
-  fin_cases i <;> fin_cases j <;>
-    simp only [b, q, wedge3, ambientPairing_ιMulti] <;>
-    norm_num [e, f, basisVector, eIndex, fIndex, nextOne, nextTwo,
-      Matrix.det_succ_row_zero, Matrix.submatrix, Fin.sum_univ_succ, Fin.append,
-      Fin.addCases, Fin.succAbove, Pi.single_apply]
+
+  change ambientPairing K (exteriorPower.ιMulti K 3 ![f K 0,f K 1,f K 2])
+    (exteriorPower.ιMulti K 3 ![e K i,f K (nextOne j),f K (nextTwo j)]) = 0
+  apply pairing_zero_of_repeated_row K _ _ ((nextOne j).castAdd 3) 4
+  · fin_cases j <;> decide
+  · rw [Fin.append_left, right_basis_tuple]
+    rfl
+
 @[simp] theorem ambientPairing_b_p (i j : Fin 3) : ambientPairing K (b K) (p K i j) = 0 := by
-  fin_cases i <;> fin_cases j <;>
-    simp only [b, p, wedge3, ambientPairing_ιMulti] <;>
-    norm_num [e, f, basisVector, eIndex, fIndex, nextOne, nextTwo,
-      Matrix.det_succ_row_zero, Matrix.submatrix, Fin.sum_univ_succ, Fin.append,
-      Fin.addCases, Fin.succAbove, Pi.single_apply]
+
+  change ambientPairing K (exteriorPower.ιMulti K 3 ![f K 0,f K 1,f K 2])
+    (exteriorPower.ιMulti K 3 ![f K i,e K (nextOne j),e K (nextTwo j)]) = 0
+  apply pairing_zero_of_repeated_row K _ _ (i.castAdd 3) 3
+  · fin_cases i <;> decide
+  · rw [Fin.append_left, right_basis_tuple]
+    rfl
+
 @[simp] theorem ambientPairing_q_a (i j : Fin 3) : ambientPairing K (q K i j) (a K) = 0 := by
   rw [ambientPairing_neg_swap, ambientPairing_a_q, neg_zero]
 @[simp] theorem ambientPairing_p_a (i j : Fin 3) : ambientPairing K (p K i j) (a K) = 0 := by
@@ -625,27 +673,239 @@ set_option maxHeartbeats 4000000
 
 @[simp] theorem ambientPairing_q_q (i j k l : Fin 3) :
     ambientPairing K (q K i j) (q K k l) = 0 := by
-  fin_cases i <;> fin_cases j <;> fin_cases k <;> fin_cases l <;>
-    simp only [q, wedge3, ambientPairing_ιMulti] <;>
-    norm_num [e, f, basisVector, eIndex, fIndex, nextOne, nextTwo,
-      Matrix.det_succ_row_zero, Matrix.submatrix, Fin.sum_univ_succ, Fin.append,
-      Fin.addCases, Fin.succAbove, Pi.single_apply]
+
+  change ambientPairing K (exteriorPower.ιMulti K 3
+    ![e K i,f K (nextOne j),f K (nextTwo j)])
+    (exteriorPower.ιMulti K 3
+      ![e K k,f K (nextOne l),f K (nextTwo l)]) = 0
+  rcases cyclic_pairs_intersect j l with h | h | h | h
+  · apply pairing_zero_of_repeated_row K _ _ 1 4 (by decide)
+    change f K (nextOne j) = f K (nextOne l)
+    rw [h]
+  · apply pairing_zero_of_repeated_row K _ _ 1 5 (by decide)
+    change f K (nextOne j) = f K (nextTwo l)
+    rw [h]
+  · apply pairing_zero_of_repeated_row K _ _ 2 4 (by decide)
+    change f K (nextTwo j) = f K (nextOne l)
+    rw [h]
+  · apply pairing_zero_of_repeated_row K _ _ 2 5 (by decide)
+    change f K (nextTwo j) = f K (nextTwo l)
+    rw [h]
+
 @[simp] theorem ambientPairing_p_p (i j k l : Fin 3) :
     ambientPairing K (p K i j) (p K k l) = 0 := by
-  fin_cases i <;> fin_cases j <;> fin_cases k <;> fin_cases l <;>
-    simp only [p, wedge3, ambientPairing_ιMulti] <;>
-    norm_num [e, f, basisVector, eIndex, fIndex, nextOne, nextTwo,
-      Matrix.det_succ_row_zero, Matrix.submatrix, Fin.sum_univ_succ, Fin.append,
-      Fin.addCases, Fin.succAbove, Pi.single_apply]
+
+  change ambientPairing K (exteriorPower.ιMulti K 3
+    ![f K i,e K (nextOne j),e K (nextTwo j)])
+    (exteriorPower.ιMulti K 3
+      ![f K k,e K (nextOne l),e K (nextTwo l)]) = 0
+  rcases cyclic_pairs_intersect j l with h | h | h | h
+  · apply pairing_zero_of_repeated_row K _ _ 1 4 (by decide)
+    change e K (nextOne j) = e K (nextOne l)
+    rw [h]
+  · apply pairing_zero_of_repeated_row K _ _ 1 5 (by decide)
+    change e K (nextOne j) = e K (nextTwo l)
+    rw [h]
+  · apply pairing_zero_of_repeated_row K _ _ 2 4 (by decide)
+    change e K (nextTwo j) = e K (nextOne l)
+    rw [h]
+  · apply pairing_zero_of_repeated_row K _ _ 2 5 (by decide)
+    change e K (nextTwo j) = e K (nextTwo l)
+    rw [h]
+
+private theorem pairing_q_p_diagonal (i j : Fin 3) :
+    ambientPairing K (q K i j) (p K j i) = 1 := by
+  fin_cases i <;> fin_cases j
+  · simp only [q, p, wedge3, ambientPairing_ιMulti]
+    change (Matrix.of fun r s : Fin 6 =>
+      Fin.append ![e K 0,f K (nextOne 0),f K (nextTwo 0)]
+        ![f K 0,e K (nextOne 0),e K (nextTwo 0)] r s).det = 1
+    let σ : Equiv.Perm (Fin 6) := Equiv.swap (2 : Fin 6) 5 * Equiv.swap (1 : Fin 6) 4
+    have hsign : Equiv.Perm.sign σ = 1 := by
+      simp [σ, Equiv.Perm.sign_swap']
+    have hM : (Matrix.of fun r s : Fin 6 =>
+        Fin.append ![e K 0,f K (nextOne 0),f K (nextTwo 0)]
+          ![f K 0,e K (nextOne 0),e K (nextTwo 0)] r s) =
+        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
+      ext r s
+      fin_cases r <;>
+        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
+          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
+    rw [hM, Matrix.det_permute, hsign]
+    simp
+  · simp only [q, p, wedge3, ambientPairing_ιMulti]
+    change (Matrix.of fun r s : Fin 6 =>
+      Fin.append ![e K 0,f K (nextOne 1),f K (nextTwo 1)]
+        ![f K 1,e K (nextOne 0),e K (nextTwo 0)] r s).det = 1
+    let σ : Equiv.Perm (Fin 6) := Equiv.swap (2 : Fin 6) 1 * Equiv.swap (2 : Fin 6) 4 * Equiv.swap (2 : Fin 6) 3 * Equiv.swap (1 : Fin 6) 5
+    have hsign : Equiv.Perm.sign σ = 1 := by
+      simp [σ, Equiv.Perm.sign_swap']
+    have hM : (Matrix.of fun r s : Fin 6 =>
+        Fin.append ![e K 0,f K (nextOne 1),f K (nextTwo 1)]
+          ![f K 1,e K (nextOne 0),e K (nextTwo 0)] r s) =
+        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
+      ext r s
+      fin_cases r <;>
+        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
+          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
+    rw [hM, Matrix.det_permute, hsign]
+    simp
+  · simp only [q, p, wedge3, ambientPairing_ιMulti]
+    change (Matrix.of fun r s : Fin 6 =>
+      Fin.append ![e K 0,f K (nextOne 2),f K (nextTwo 2)]
+        ![f K 2,e K (nextOne 0),e K (nextTwo 0)] r s).det = 1
+    let σ : Equiv.Perm (Fin 6) := Equiv.swap (2 : Fin 6) 1 * Equiv.swap (1 : Fin 6) 5 * Equiv.swap (2 : Fin 6) 4 * Equiv.swap (1 : Fin 6) 3
+    have hsign : Equiv.Perm.sign σ = 1 := by
+      simp [σ, Equiv.Perm.sign_swap']
+    have hM : (Matrix.of fun r s : Fin 6 =>
+        Fin.append ![e K 0,f K (nextOne 2),f K (nextTwo 2)]
+          ![f K 2,e K (nextOne 0),e K (nextTwo 0)] r s) =
+        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
+      ext r s
+      fin_cases r <;>
+        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
+          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
+    rw [hM, Matrix.det_permute, hsign]
+    simp
+  · simp only [q, p, wedge3, ambientPairing_ιMulti]
+    change (Matrix.of fun r s : Fin 6 =>
+      Fin.append ![e K 1,f K (nextOne 0),f K (nextTwo 0)]
+        ![f K 0,e K (nextOne 1),e K (nextTwo 1)] r s).det = 1
+    let σ : Equiv.Perm (Fin 6) := Equiv.swap (0 : Fin 6) 2 * Equiv.swap (2 : Fin 6) 5 * Equiv.swap (0 : Fin 6) 4 * Equiv.swap (0 : Fin 6) 1
+    have hsign : Equiv.Perm.sign σ = 1 := by
+      simp [σ, Equiv.Perm.sign_swap']
+    have hM : (Matrix.of fun r s : Fin 6 =>
+        Fin.append ![e K 1,f K (nextOne 0),f K (nextTwo 0)]
+          ![f K 0,e K (nextOne 1),e K (nextTwo 1)] r s) =
+        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
+      ext r s
+      fin_cases r <;>
+        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
+          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
+    rw [hM, Matrix.det_permute, hsign]
+    simp
+  · simp only [q, p, wedge3, ambientPairing_ιMulti]
+    change (Matrix.of fun r s : Fin 6 =>
+      Fin.append ![e K 1,f K (nextOne 1),f K (nextTwo 1)]
+        ![f K 1,e K (nextOne 1),e K (nextTwo 1)] r s).det = 1
+    let σ : Equiv.Perm (Fin 6) := Equiv.swap (2 : Fin 6) 4 * Equiv.swap (2 : Fin 6) 3 * Equiv.swap (0 : Fin 6) 5 * Equiv.swap (0 : Fin 6) 1
+    have hsign : Equiv.Perm.sign σ = 1 := by
+      simp [σ, Equiv.Perm.sign_swap']
+    have hM : (Matrix.of fun r s : Fin 6 =>
+        Fin.append ![e K 1,f K (nextOne 1),f K (nextTwo 1)]
+          ![f K 1,e K (nextOne 1),e K (nextTwo 1)] r s) =
+        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
+      ext r s
+      fin_cases r <;>
+        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
+          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
+    rw [hM, Matrix.det_permute, hsign]
+    simp
+  · simp only [q, p, wedge3, ambientPairing_ιMulti]
+    change (Matrix.of fun r s : Fin 6 =>
+      Fin.append ![e K 1,f K (nextOne 2),f K (nextTwo 2)]
+        ![f K 2,e K (nextOne 1),e K (nextTwo 1)] r s).det = 1
+    let σ : Equiv.Perm (Fin 6) := Equiv.swap (0 : Fin 6) 5 * Equiv.swap (2 : Fin 6) 4 * Equiv.swap (0 : Fin 6) 3 * Equiv.swap (0 : Fin 6) 1
+    have hsign : Equiv.Perm.sign σ = 1 := by
+      simp [σ, Equiv.Perm.sign_swap']
+    have hM : (Matrix.of fun r s : Fin 6 =>
+        Fin.append ![e K 1,f K (nextOne 2),f K (nextTwo 2)]
+          ![f K 2,e K (nextOne 1),e K (nextTwo 1)] r s) =
+        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
+      ext r s
+      fin_cases r <;>
+        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
+          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
+    rw [hM, Matrix.det_permute, hsign]
+    simp
+  · simp only [q, p, wedge3, ambientPairing_ιMulti]
+    change (Matrix.of fun r s : Fin 6 =>
+      Fin.append ![e K 2,f K (nextOne 0),f K (nextTwo 0)]
+        ![f K 0,e K (nextOne 2),e K (nextTwo 2)] r s).det = 1
+    let σ : Equiv.Perm (Fin 6) := Equiv.swap (1 : Fin 6) 0 * Equiv.swap (0 : Fin 6) 5 * Equiv.swap (1 : Fin 6) 4 * Equiv.swap (0 : Fin 6) 2
+    have hsign : Equiv.Perm.sign σ = 1 := by
+      simp [σ, Equiv.Perm.sign_swap']
+    have hM : (Matrix.of fun r s : Fin 6 =>
+        Fin.append ![e K 2,f K (nextOne 0),f K (nextTwo 0)]
+          ![f K 0,e K (nextOne 2),e K (nextTwo 2)] r s) =
+        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
+      ext r s
+      fin_cases r <;>
+        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
+          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
+    rw [hM, Matrix.det_permute, hsign]
+    simp
+  · simp only [q, p, wedge3, ambientPairing_ιMulti]
+    change (Matrix.of fun r s : Fin 6 =>
+      Fin.append ![e K 2,f K (nextOne 1),f K (nextTwo 1)]
+        ![f K 1,e K (nextOne 2),e K (nextTwo 2)] r s).det = 1
+    let σ : Equiv.Perm (Fin 6) := Equiv.swap (0 : Fin 6) 4 * Equiv.swap (0 : Fin 6) 3 * Equiv.swap (1 : Fin 6) 5 * Equiv.swap (0 : Fin 6) 2
+    have hsign : Equiv.Perm.sign σ = 1 := by
+      simp [σ, Equiv.Perm.sign_swap']
+    have hM : (Matrix.of fun r s : Fin 6 =>
+        Fin.append ![e K 2,f K (nextOne 1),f K (nextTwo 1)]
+          ![f K 1,e K (nextOne 2),e K (nextTwo 2)] r s) =
+        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
+      ext r s
+      fin_cases r <;>
+        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
+          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
+    rw [hM, Matrix.det_permute, hsign]
+    simp
+  · simp only [q, p, wedge3, ambientPairing_ιMulti]
+    change (Matrix.of fun r s : Fin 6 =>
+      Fin.append ![e K 2,f K (nextOne 2),f K (nextTwo 2)]
+        ![f K 2,e K (nextOne 2),e K (nextTwo 2)] r s).det = 1
+    let σ : Equiv.Perm (Fin 6) := Equiv.swap (1 : Fin 6) 5 * Equiv.swap (0 : Fin 6) 4 * Equiv.swap (1 : Fin 6) 3 * Equiv.swap (0 : Fin 6) 2
+    have hsign : Equiv.Perm.sign σ = 1 := by
+      simp [σ, Equiv.Perm.sign_swap']
+    have hM : (Matrix.of fun r s : Fin 6 =>
+        Fin.append ![e K 2,f K (nextOne 2),f K (nextTwo 2)]
+          ![f K 2,e K (nextOne 2),e K (nextTwo 2)] r s) =
+        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
+      ext r s
+      fin_cases r <;>
+        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
+          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
+    rw [hM, Matrix.det_permute, hsign]
+    simp
 
 /-- Full exterior mixed Gram matrix: it is the trace pairing, not the entrywise pairing. -/
 @[simp] theorem ambientPairing_q_p (i j k l : Fin 3) :
     ambientPairing K (q K i j) (p K k l) = if i=l then if j=k then 1 else 0 else 0 := by
-  fin_cases i <;> fin_cases j <;> fin_cases k <;> fin_cases l <;>
-    simp only [q, p, wedge3, ambientPairing_ιMulti] <;>
-    norm_num [e, f, basisVector, eIndex, fIndex, nextOne, nextTwo,
-      Matrix.det_succ_row_zero, Matrix.submatrix, Fin.sum_univ_succ, Fin.append,
-      Fin.addCases, Fin.succAbove, Pi.single_apply]
+
+  by_cases hil : i = l
+  · subst l
+    by_cases hjk : j = k
+    · subst k
+      simp only [ite_true]
+      exact pairing_q_p_diagonal K i j
+    · simp only [ite_true, if_neg hjk]
+      change ambientPairing K (exteriorPower.ιMulti K 3
+        ![e K i,f K (nextOne j),f K (nextTwo j)])
+        (exteriorPower.ιMulti K 3
+          ![f K k,e K (nextOne i),e K (nextTwo i)]) = 0
+      rcases cyclic_cases k j with h | h | h
+      · exact (hjk h.symm).elim
+      · apply pairing_zero_of_repeated_row K _ _ 1 3 (by decide)
+        change f K (nextOne j) = f K k
+        rw [h]
+      · apply pairing_zero_of_repeated_row K _ _ 2 3 (by decide)
+        change f K (nextTwo j) = f K k
+        rw [h]
+  · simp only [if_neg hil]
+    change ambientPairing K (exteriorPower.ιMulti K 3
+      ![e K i,f K (nextOne j),f K (nextTwo j)])
+      (exteriorPower.ιMulti K 3
+        ![f K k,e K (nextOne l),e K (nextTwo l)]) = 0
+    rcases cyclic_cases i l with h | h | h
+    · exact (hil h).elim
+    · apply pairing_zero_of_repeated_row K _ _ 0 4 (by decide)
+      change e K i = e K (nextOne l)
+      rw [h]
+    · apply pairing_zero_of_repeated_row K _ _ 0 5 (by decide)
+      change e K i = e K (nextTwo l)
+      rw [h]
 
 @[simp] theorem ambientPairing_p_q (i j k l : Fin 3) :
     ambientPairing K (p K i j) (q K k l) = -(if k=j then if l=i then 1 else 0 else 0) := by

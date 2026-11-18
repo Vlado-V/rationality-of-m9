@@ -319,25 +319,134 @@ theorem eval_minor_formalMatrix (z : Fin 13 → K) (i j k : Fin 6) :
   exact (scaledGauss_entry K (z 0) (upperParameterMatrix K z)
     (lowerParameterMatrix K z) r c).symm
 
+/- Scratch-only shared first variation. The actual polynomial matrix and
+minor maps are retained; only their proof certificates are factored. -/
+private def detFirstVariation (A D : Matrix (Fin 3) (Fin 3) K) : K :=
+  (A.updateRow 0 (D 0)).det + (A.updateRow 1 (D 1)).det +
+    (A.updateRow 2 (D 2)).det
+
+private theorem evalBase_pderiv_det_firstVariation (q : Fin 13)
+    (M : Matrix (Fin 3) (Fin 3) (ParameterRing K)) :
+    evalBase K (MvPolynomial.pderiv q M.det) =
+      detFirstVariation K (M.map (evalBase K))
+        (fun r c => evalBase K (MvPolynomial.pderiv q (M r c))) := by
+  simp [detFirstVariation, Matrix.det_fin_three, Matrix.updateRow_apply,
+    MvPolynomial.pderiv_mul]
+  ring
+
+
+private def derivativeAtBase (q : Fin 13) (f : ParameterRing K) : K :=
+  evalBase K (MvPolynomial.pderiv q f)
+
+private theorem derivativeAtBase_add (q : Fin 13) (f g : ParameterRing K) :
+    derivativeAtBase K q (f+g) = derivativeAtBase K q f + derivativeAtBase K q g := by
+  simp [derivativeAtBase]
+
+private theorem derivativeAtBase_mul (q : Fin 13) (f g : ParameterRing K) :
+    derivativeAtBase K q (f*g) =
+      evalBase K f * derivativeAtBase K q g + evalBase K g * derivativeAtBase K q f := by
+  simp [derivativeAtBase, MvPolynomial.pderiv_mul]
+
+private theorem derivativeAtBase_X (q r : Fin 13) :
+    derivativeAtBase K q (MvPolynomial.X r) = if q=r then 1 else 0 := by
+  simp [derivativeAtBase, MvPolynomial.pderiv_X, Pi.single_apply, apply_ite, eq_comm]
+
+private theorem derivativeAtBase_one (q : Fin 13) :
+    derivativeAtBase K q 1 = 0 := by
+  simp [derivativeAtBase]
+
+private theorem derivativeAtBase_zero (q : Fin 13) :
+    derivativeAtBase K q 0 = 0 := by
+  simp [derivativeAtBase]
+
+
+private def gaussFirstVariation (z : Fin 13 → K) : Matrix (Fin 6) (Fin 6) K :=
+  fun r c => Fin.addCases (m := 3) (n := 3)
+    (fun i => Fin.addCases (m := 3) (n := 3)
+      (fun j => if i=j then ![2*z 0,z 0,z 0] i else 0)
+      (fun j => upperParameters z i j) c)
+    (fun i => Fin.addCases (m := 3) (n := 3)
+      (fun j => lowerParameters z i j)
+      (fun j => if i=j then ![0,z 0,z 0] i else 0) c) r
+
+/-- One actual tangent-matrix identity covers all thirteen derivative directions. -/
+private theorem evalBase_pderiv_formalMatrix (q : Fin 13) :
+    (fun r c => evalBase K (MvPolynomial.pderiv q (formalMatrix K r c))) =
+      gaussFirstVariation K (Pi.single q 1) := by
+  ext r c
+  change derivativeAtBase K q (formalMatrix K r c) = _
+  fin_cases r <;> fin_cases c <;>
+    norm_num [formalMatrix, gaussEntries, gaussFirstVariation,
+      derivativeAtBase_add, derivativeAtBase_mul, derivativeAtBase_X,
+      derivativeAtBase_one, derivativeAtBase_zero, pow_two,
+      evalBase, basePoint, upperParameters, lowerParameters,
+      Fin.addCases, Fin.sum_univ_succ, Pi.single_apply, mul_ite, ite_mul, eq_comm]
+  all_goals by_cases hq : q = 0 <;> norm_num [hq]
+
+private def minorFirstVariation (A D : Matrix (Fin 6) (Fin 6) K)
+    (i j k : Fin 6) : K :=
+  detFirstVariation K (fun r c : Fin 3 => A (![i,j,k] c) (eIndex r))
+    (fun r c : Fin 3 => D (![i,j,k] c) (eIndex r)) +
+  detFirstVariation K (fun r c : Fin 3 => A (![i,j,k] c) (fIndex r))
+    (fun r c : Fin 3 => D (![i,j,k] c) (fIndex r))
+
+/-- Universal first variation of the actual six-row exterior-coordinate minor. -/
+private theorem evalBase_pderiv_minorSum_firstVariation
+    (q : Fin 13) (i j k : Fin 6) :
+    evalBase K (MvPolynomial.pderiv q (minorSum (formalMatrix K) i j k)) =
+      minorFirstVariation K (1 : Matrix (Fin 6) (Fin 6) K)
+        (gaussFirstVariation K (Pi.single q 1)) i j k := by
+  have h :
+      evalBase K (MvPolynomial.pderiv q (minorSum (formalMatrix K) i j k)) =
+        minorFirstVariation K ((formalMatrix K).map (evalBase K))
+          (fun r c => evalBase K (MvPolynomial.pderiv q (formalMatrix K r c))) i j k := by
+    simp only [minorSum, minorFirstVariation, map_add]
+    exact congrArg₂ (· + ·)
+      (evalBase_pderiv_det_firstVariation K q
+        (fun r c : Fin 3 => formalMatrix K (![i,j,k] c) (eIndex r)))
+      (evalBase_pderiv_det_firstVariation K q
+        (fun r c : Fin 3 => formalMatrix K (![i,j,k] c) (fIndex r)))
+  rw [evalBase_formalMatrix, evalBase_pderiv_formalMatrix] at h
+  exact h
+
+private theorem minorFirstVariation_A (z : Fin 13 → K) :
+    minorFirstVariation K (1 : Matrix (Fin 6) (Fin 6) K)
+      (gaussFirstVariation K z) 0 1 2 = 4 * z 0 := by
+  norm_num [minorFirstVariation, detFirstVariation, gaussFirstVariation,
+    Matrix.det_fin_three, Matrix.updateRow_apply, Matrix.one_apply,
+    Fin.addCases, eIndex, fIndex]
+  ring
+
+/-- The actual target minors read the same universal linear variation;
+the thirteen cases contain no polynomial differentiation expansion. -/
+private theorem evalBase_pderiv_formalTarget_firstVariation (i q : Fin 13) :
+    evalBase K (MvPolynomial.pderiv q (formalTarget K i)) =
+      if i=0 then 2 * (Pi.single q (1 : K) : Fin 13 → K) 0 else (Pi.single q (1 : K) : Fin 13 → K) i := by
+  fin_cases i <;>
+    simp only [formalTarget, Matrix.cons_val_zero', Matrix.cons_val_succ'] <;>
+    rw [evalBase_pderiv_minorSum_firstVariation] <;>
+    norm_num [minorFirstVariation, detFirstVariation, gaussFirstVariation,
+      Matrix.det_fin_three, Matrix.updateRow_apply, Matrix.one_apply,
+      upperParameters, lowerParameters, Fin.addCases, eIndex, fIndex,
+      Pi.single_apply, mul_ite, ite_mul, eq_comm]
+  all_goals by_cases hq : q = 0 <;> norm_num [hq]
+
+
 set_option maxHeartbeats 3000000 in
 @[simp] theorem evalBase_pderiv_formalA (j : Fin 13) :
     evalBase K (MvPolynomial.pderiv j (formalA K)) = if j=0 then 4 else 0 := by
-  fin_cases j <;> unfold formalA minorSum <;>
-    simp only [Matrix.det_fin_three] <;>
-    norm_num [evalBase,basePoint,formalMatrix,gaussEntries,upperParameters,lowerParameters,
-      MvPolynomial.pderiv_mul,MvPolynomial.pderiv_pow,MvPolynomial.pderiv_one,
-      Fin.sum_univ_succ,Fin.addCases,eIndex,fIndex,Pi.single_apply]
+  rw [formalA, evalBase_pderiv_minorSum_firstVariation, minorFirstVariation_A]
+  by_cases hq : j = 0 <;> simp [Pi.single_apply, hq, eq_comm]
 
 set_option maxHeartbeats 8000000 in
 @[simp] theorem evalBase_pderiv_formalTarget (i j : Fin 13) :
     evalBase K (MvPolynomial.pderiv j (formalTarget K i)) =
       if i=0 then (if j=0 then 2 else 0) else (if i=j then 1 else 0) := by
-  fin_cases i <;> simp only [formalTarget,Matrix.cons_val_zero',Matrix.cons_val_succ'] <;>
-    unfold minorSum <;> simp only [Matrix.det_fin_three] <;>
-    norm_num [evalBase,basePoint,formalMatrix,gaussEntries,upperParameters,lowerParameters,
-      MvPolynomial.pderiv_mul,MvPolynomial.pderiv_pow,MvPolynomial.pderiv_one,
-      Fin.sum_univ_succ,Fin.addCases,eIndex,fIndex,Pi.single_apply,mul_ite,ite_mul]
-  all_goals fin_cases j <;> norm_num [Pi.single_apply]
+  rw [evalBase_pderiv_formalTarget_firstVariation]
+  by_cases hi : i = 0
+  · subst i
+    by_cases hj : j = 0 <;> simp [Pi.single_apply, hj, eq_comm]
+  · simp [hi, Pi.single_apply, eq_comm]
 
 /-- Numerator of the Jacobian of the actual chart map `N_i/A`. -/
 def chartJacobian : Matrix (Fin 13) (Fin 13) (ParameterRing K) :=

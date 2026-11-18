@@ -34,6 +34,11 @@ related_formalizations:
   relationship: builds-on
   note: Native algebraic geometry, curve families, stacks and independently constructed coarse moduli
     spaces used on the proof side; Apache-2.0.
+- id: https://github.com/Vlado-V/Stacks/tree/94ddc2a5f32dbcb5b3277ab36300960de7e6a6de
+  relationship: builds-on
+  note: Exact Stacks proof dependency used by this build. It narrows imports and separates
+    the rank-zero projective bundle lemma from its larger module. The upstream revision
+    and Apache-2.0 attribution are preserved.
 - id: https://github.com/leanprover-community/mathlib4/tree/56a005855ea17e0b0958f73ec801ae140b0a1679
   relationship: builds-on
   note: Canonical statement definitions and algebraic, geometric, categorical and field-theoretic proof
