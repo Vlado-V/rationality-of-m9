@@ -13,6 +13,7 @@ public import Mathlib.CategoryTheory.MorphismProperty.Representable
 public import Mathlib.CategoryTheory.Sites.Over
 public import Mathlib.Analysis.Complex.Basic
 public import Mathlib.Algebra.Field.ULift
+public import Mathlib.CategoryTheory.Abelian.Monomorphisms
 
 /-!
 # Rationality of the actual genus-nine coarse moduli space
