@@ -63,10 +63,31 @@ def congruence (F : Mat3 R) : Mat6 R := fun i j =>
 /-- The matrix is the literal coordinate matrix of congruence on symmetric forms. -/
 theorem congruence_mulVec (F : Mat3 R) (x : Fin 6 → R) :
     (congruence F).mulVec x = symCoordinates (F * symMatrix x * F.transpose) := by
-  funext i
-  fin_cases i <;>
-    simp [congruence,symCoordinates,symMatrix,Matrix.mulVec,Matrix.mul_apply,
-      dotProduct,Matrix.transpose_apply,Fin.sum_univ_succ,Pi.single_apply] <;> ring
+  let linearCongruence : (Fin 6 → R) →ₗ[R] (Fin 6 → R) := {
+    toFun v := symCoordinates (F * symMatrix v * F.transpose)
+    map_add' v w := by
+      have h : symMatrix (v + w) = symMatrix v + symMatrix w := by
+        ext i j
+        fin_cases i <;> fin_cases j <;> rfl
+      change symCoordinates (F * symMatrix (v + w) * F.transpose) = _
+      rw [h, Matrix.mul_add, Matrix.add_mul]
+      funext i
+      fin_cases i <;> rfl
+    map_smul' c v := by
+      have h : symMatrix (c • v) = c • symMatrix v := by
+        ext i j
+        fin_cases i <;> fin_cases j <;> rfl
+      change symCoordinates (F * symMatrix (c • v) * F.transpose) = _
+      rw [h, Matrix.mul_smul, Matrix.smul_mul]
+      funext i
+      fin_cases i <;> rfl }
+  have hmatrix : congruence F = LinearMap.toMatrix' linearCongruence := by
+    ext i j
+    rw [LinearMap.toMatrix'_apply] <;> rfl
+  calc
+    (congruence F).mulVec x = (LinearMap.toMatrix' linearCongruence).mulVec x :=
+      congrArg (fun M => M.mulVec x) hmatrix
+    _ = _ := LinearMap.toMatrix'_mulVec linearCongruence x
 
 @[simp] theorem congruence_one : congruence (1 : Mat3 R) = 1 := by
   ext i j

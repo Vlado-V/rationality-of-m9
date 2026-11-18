@@ -2,6 +2,8 @@ module
 
 public import M9StacksIntegration.LagrangianRingCoordinates
 public import M9StacksIntegration.LagrangianSymplecticMatrix
+public import Mathlib.LinearAlgebra.Matrix.Adjugate
+public import Mathlib.LinearAlgebra.Matrix.Trace
 
 /-!
 # An admissible invertible minor of an actual isotropic three-row quotient
@@ -104,6 +106,71 @@ theorem cofactor22 (A B : Matrix (Fin 3) (Fin 3) R) :
 def rowMinor (S : Matrix (Fin 6) (Fin 3) R) (a b c : Fin 6) : R :=
   (S.submatrix ![a,b,c] id).det
 
+private theorem mixed_eq_adjugate_mul (A B : Matrix (Fin 3) (Fin 3) R) :
+    mixed A B = A.adjugate * B := by
+  ext i j
+  change Matrix.cramer A (B.col j) i = (A.adjugate * B) i j
+  have h := congrFun (Matrix.cramer_eq_adjugate_mulVec A (B.col j)) i
+  simpa only [Matrix.mulVec, dotProduct, Matrix.mul_apply, Matrix.col_apply] using h
+
+private theorem det_add_three (A B : Matrix (Fin 3) (Fin 3) R) :
+    (A + B).det = A.det + B.det + (A.adjugate * B).trace + (B.adjugate * A).trace := by
+  simp [Matrix.det_fin_three, Matrix.adjugate_fin_three, Matrix.trace,
+    Matrix.vecMul, dotProduct, Fin.sum_univ_succ]
+  ring
+
+private theorem trace_four_cycle (A B C D : Matrix (Fin 3) (Fin 3) R) :
+    ((A * B) * (C * D)).trace = ((B * C) * (D * A)).trace := by
+  rw [Matrix.mul_assoc, Matrix.trace_mul_comm]
+  congr 1
+  simp only [Matrix.mul_assoc]
+
+private theorem trace_mul_three (A C : Matrix (Fin 3) (Fin 3) R) :
+    (A * C).trace = ∑ j : Fin 3, (A 0 j * C j 0 + A 1 j * C j 1 + A 2 j * C j 2) := by
+  simp [Matrix.trace, Matrix.mul_apply, Fin.sum_univ_succ]
+  ring
+
+private def topRows (S : Matrix (Fin 6) (Fin 3) R) : Matrix (Fin 3) (Fin 3) R :=
+  fun i j => S (i.castAdd 3) j
+
+private def bottomRows (S : Matrix (Fin 6) (Fin 3) R) : Matrix (Fin 3) (Fin 3) R :=
+  fun i j => S (Fin.natAdd 3 i) j
+
+private theorem topRows_det (S : Matrix (Fin 6) (Fin 3) R) :
+    (topRows S).det = rowMinor S 0 1 2 := by
+  apply congrArg Matrix.det
+  ext i j
+  fin_cases i <;> rfl
+
+private theorem bottomRows_det (S : Matrix (Fin 6) (Fin 3) R) :
+    (bottomRows S).det = rowMinor S 3 4 5 := by
+  apply congrArg Matrix.det
+  ext i j
+  fin_cases i <;> rfl
+
+private theorem top_row_coefficient (S : Matrix (Fin 6) (Fin 3) R) (j i : Fin 3) :
+    (bottomRows S * (topRows S).adjugate) j i =
+      ![rowMinor S 1 2 (Fin.natAdd 3 j), -rowMinor S 0 2 (Fin.natAdd 3 j),
+        rowMinor S 0 1 (Fin.natAdd 3 j)] i := by
+  fin_cases i <;>
+    simp [topRows, bottomRows, Matrix.adjugate_fin_three, Matrix.mul_apply,
+      Fin.sum_univ_succ, rowMinor, Matrix.det_fin_three] <;> ring
+
+private theorem bottom_row_coefficient (S : Matrix (Fin 6) (Fin 3) R) (j i : Fin 3) :
+    (topRows S * (bottomRows S).adjugate) j i =
+      ![rowMinor S (j.castAdd 3) 4 5, -rowMinor S (j.castAdd 3) 3 5,
+        rowMinor S (j.castAdd 3) 3 4] i := by
+  fin_cases i <;>
+    simp [topRows, bottomRows, Matrix.adjugate_fin_three, Matrix.mul_apply,
+      Fin.sum_univ_succ, rowMinor, Matrix.det_fin_three] <;> ring
+
+private theorem mul_eq_block_sum (M : Matrix (Fin 3) (Fin 6) R)
+    (S : Matrix (Fin 6) (Fin 3) R) :
+    M * S = leftBlock M * topRows S + rightBlock M * bottomRows S := by
+  ext i j
+  simp only [Matrix.mul_apply, Matrix.add_apply, leftBlock, rightBlock, topRows, bottomRows]
+  exact Fin.sum_univ_add (fun k : Fin (3 + 3) => M i k * S k j)
+
 /-- The literal twenty-term Cauchy–Binet identity, without a choice of a minor. -/
 theorem det_mul_expansion (M : Matrix (Fin 3) (Fin 6) R) (S : Matrix (Fin 6) (Fin 3) R) :
     (M*S).det=(leftBlock M).det*rowMinor S 0 1 2+(rightBlock M).det*rowMinor S 3 4 5+
@@ -114,8 +181,16 @@ theorem det_mul_expansion (M : Matrix (Fin 3) (Fin 6) R) (S : Matrix (Fin 6) (Fi
         mixed (rightBlock M) (leftBlock M) 0 j*rowMinor S (j.castAdd 3) 4 5-
         mixed (rightBlock M) (leftBlock M) 1 j*rowMinor S (j.castAdd 3) 3 5+
         mixed (rightBlock M) (leftBlock M) 2 j*rowMinor S (j.castAdd 3) 3 4) := by
-  simp [Matrix.det_fin_three,Matrix.mul_apply,Fin.sum_univ_succ,rowMinor,mixed,
-    leftBlock,rightBlock,Matrix.updateCol,Matrix.col_apply]
+  rw [mul_eq_block_sum, det_add_three, Matrix.det_mul, Matrix.det_mul,
+    Matrix.adjugate_mul_distrib, Matrix.adjugate_mul_distrib,
+    trace_four_cycle (topRows S).adjugate (leftBlock M).adjugate (rightBlock M) (bottomRows S),
+    trace_four_cycle (bottomRows S).adjugate (rightBlock M).adjugate (leftBlock M) (topRows S),
+    ← mixed_eq_adjugate_mul (leftBlock M) (rightBlock M),
+    ← mixed_eq_adjugate_mul (rightBlock M) (leftBlock M),
+    trace_mul_three, trace_mul_three, topRows_det, bottomRows_det]
+  simp only [top_row_coefficient, bottom_row_coefficient, Matrix.cons_val_zero,
+    Matrix.cons_val_one, Matrix.cons_val_two, Matrix.head_cons, Matrix.tail_cons,
+    Fin.sum_univ_succ]
   ring
 
 def admissibleMinor (M : Matrix (Fin 3) (Fin 6) R) (s : Choice) : R :=

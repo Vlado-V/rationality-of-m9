@@ -22,7 +22,15 @@ theorem degreePolynomial_reverse :
     rename (Equiv.swap (0 : Fin 3) 2) degreePolynomial = -degreePolynomial := by
   simp only [degreePolynomial, map_mul, map_add, map_sub, map_pow, rename_X]
   norm_num [Equiv.swap_apply_def]
-  ring
+  set a := (X 0 : MvPolynomial (Fin 3) ℤ)
+  set b := (X 1 : MvPolynomial (Fin 3) ℤ)
+  set c := (X 2 : MvPolynomial (Fin 3) ℤ)
+  have hsum : c + b + a = a + b + c := by ac_rfl
+  rw [hsum, add_comm c b, add_comm c a, add_comm b a,
+    ← neg_sub b c, ← neg_sub a c, ← neg_sub a b]
+  simp only [mul_neg, neg_mul, neg_neg]
+  congr 1
+  ac_rfl
 
 /-- The reverse ordered exponent, for the same literal polynomial. -/
 def reverseDegreeExponent : Fin 3 →₀ ℕ :=

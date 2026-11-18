@@ -57,10 +57,15 @@ theorem thirdBasis20_eq_wedge (K : Type u) [Field K] (i : Fin 20) :
 theorem coordinate_basis_map (a b c : Fin 6) (i : Fin 20) :
     φ (coordinate K a b c (thirdBasis20 K i)) =
       coordinate L a b c (thirdBasis20 L i) := by
+  have h_basis (r s : Fin 6) :
+      φ (basisVector K r s) = basisVector L r s := by
+    by_cases h : r = s
+    · subst s
+      simp [basisVector]
+    · simp [basisVector,Pi.single_apply,h,Ne.symm h]
   rw [thirdBasis20_eq_wedge, thirdBasis20_eq_wedge,
     coordinate_wedge3, coordinate_wedge3]
-  simp only [basisVector, Pi.single_apply, map_add, map_sub, map_mul]
-  split_ifs <;> simp
+  simp only [map_add,map_sub,map_mul,h_basis]
 
 /-- The actual primitive-coordinate projection matrix is literally
 natural under the supplied field homomorphism. -/

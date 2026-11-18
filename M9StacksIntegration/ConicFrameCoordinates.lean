@@ -185,10 +185,35 @@ def identityJacobianInverse : Matrix (Fin 8) (Fin 8) K :=
       0,0,0,0,0,0,1/2,0;
       1/2,0,0,0,0,0,0,0] : Matrix (Fin 8) (Fin 8) K).transpose
 
+/-- The sparse Jacobian action is computed once on an arbitrary vector. -/
+private theorem jacobian_mulVec_sparse (v : Fin 8 → K) :
+    (identityJacobian K).mulVec v =
+      ![-2*v 2,-2*v 4,-2*v 3,-2*v 1,-2*v 7,
+        2*v 4+2*v 5,2*v 6+2*v 7,2*v 0+2*v 1] := by
+  funext i
+  fin_cases i <;>
+    simp [identityJacobian,Matrix.mulVec,dotProduct,Fin.sum_univ_succ]
+
+/-- Its inverse action has only one or two nonzero terms in each row. -/
+private theorem inverse_mulVec_sparse (v : Fin 8 → K) :
+    (identityJacobianInverse K).mulVec v =
+      ![(1/2)*v 3+(1/2)*v 7,(-1/2)*v 3,(-1/2)*v 0,(-1/2)*v 2,
+        (-1/2)*v 1,(1/2)*v 1+(1/2)*v 5,(1/2)*v 4+(1/2)*v 6,(-1/2)*v 4] := by
+  funext i
+  fin_cases i <;>
+    simp [identityJacobianInverse,Matrix.mulVec,dotProduct,Fin.sum_univ_succ]
+
+/-- The sparse linear formulas cancel for every vector, without 64 entrywise inversions. -/
+private theorem inverse_jacobian_mulVec (v : Fin 8 → K) :
+    (identityJacobianInverse K).mulVec ((identityJacobian K).mulVec v) = v := by
+  rw [jacobian_mulVec_sparse,inverse_mulVec_sparse]
+  funext i
+  fin_cases i <;> norm_num <;> ring
+
 theorem identityJacobian_inverse : identityJacobianInverse K * identityJacobian K = 1 := by
-  ext i j
-  fin_cases i <;> fin_cases j <;>
-    norm_num [identityJacobian,identityJacobianInverse,Matrix.mul_apply,Fin.sum_univ_succ,Matrix.one_apply]
+  apply Matrix.ext_of_mulVec_single
+  intro i
+  rw [← Matrix.mulVec_mulVec,inverse_jacobian_mulVec,Matrix.one_mulVec]
 
 theorem jacobianNumerator_det_ne_zero : (jacobianNumerator K).det ≠ 0 := by
   intro h

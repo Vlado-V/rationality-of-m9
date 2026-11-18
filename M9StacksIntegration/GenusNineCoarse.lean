@@ -130,12 +130,87 @@ theorem smoothToStable_monomorphism (g : ℕ) (hg : 2 ≤ g) :
 theorem smoothStack_separated (g : ℕ) (hg : 2 ≤ g) :
     Stack.AlgebraicStacks.IsSeparated B integerBase hZ
       (Stack.structureMorphism B integerBase hZ (smoothStack B hZ g hg)) := by
-  have h := Stack.AlgebraicStacks.isSeparated_comp B integerBase hZ
-    (smoothToStable B hZ g hg) (Stack.structureMorphism B integerBase hZ (stableStack B hZ g))
-    (Stack.AlgebraicStacks.isSeparated_of_isMonomorphism B integerBase hZ
-      (smoothToStable B hZ g hg) (smoothToStable_monomorphism B hZ g hg))
-    (stableStack_separated B hZ g hg)
-  simpa only [Stack.comp_structureMorphism] using h
+  let h := curvesFiberedCategory_isAlgebraicStack.{u, u + 1} B hZ
+  let hQ := isOpenCurvesLocus_isSmoothH0Family_and_hasGenus_of_h2_h3 B hZ g
+    CurveFamily.firstHigherDirectImage_of_hasResidueFieldGlobalFunctions.1
+    CurveFamily.firstHigherDirectImage_of_hasResidueFieldGlobalFunctions.2
+  let W := curvesSmallOpenSubstack B hZ h hQ
+  let f := Stack.structureMorphism B integerBase hZ (curvesAlgebraicStack B hZ h)
+  let E := (curvesSmallEquivalence B hZ h).inverse
+  have hqs : Stack.AlgebraicStacks.IsQuasiSeparated B integerBase hZ (W.inclusion ≫ f) :=
+    isQuasiSeparated_curvesSmallOpenSubstack_of_stableCurvesPolarization B hZ h hQ
+      (fun F hF => (stable_of_smooth_cohomological_genus B hZ hg hF).1)
+      (stableCurvesPolarization B hZ)
+  let T : Set (Stack.AlgebraicStacks.points B integerBase hZ W.toAlgebraicStack) := Set.univ
+  have hTo : @IsOpen _ (Stack.pointTopology B integerBase hZ W.toAlgebraicStack.val) T :=
+    @isOpen_univ _ (Stack.pointTopology B integerBase hZ W.toAlgebraicStack.val)
+  have hTd : @Dense _ (Stack.pointTopology B integerBase hZ W.toAlgebraicStack.val) T :=
+    @dense_univ _ (Stack.pointTopology B integerBase hZ W.toAlgebraicStack.val)
+  have hsep : Stack.AlgebraicStacks.IsSeparated B integerBase hZ (W.inclusion ≫ f) := by
+    refine Stack.OpenSubstack.isSeparated_inclusion_comp_of_denseTestUniqueness_of_isQuasiSeparated
+      B integerBase hZ f W
+      (hasPropertyOnSomeSchemeAtlas_isLocallyNoetherian_schemeStack_integerBase.{u, u + 1} B hZ)
+      (Stack.AlgebraicStacks.isLocallyOfFiniteType_of_isLocallyOfFinitePresentation B integerBase hZ
+        (isLocallyOfFinitePresentation_structureMorphism_curvesAlgebraicStack B hZ h
+          (C1590Private.isLimitPreserving_curvesFiberedCategory B hZ)))
+      hqs T hTo hTd ?_
+    have hlift {U V : BigFppfOver B integerBase hZ} (a : U ⟶ V)
+        {ξ η : W.toAlgebraicStack.val.val.obj} (m : ξ ⟶ η)
+        (hm : W.toAlgebraicStack.val.val.p.IsHomLift a m) :=
+      (isHomLift_curvesSmallEquivalence_inverse_map_iff a m.hom).1
+        ((Functor.isHomLift_comp_iff W.property.ι _ _ _).1 hm)
+    refine Stack.ValuativeSquare.denseTestUniqueness_of_fibre B integerBase hZ _ ?_ ?_
+    · intro q hq _ ξ η c _ hc _ t ht htc
+      have := hq
+      have hc' := hlift _ c hc
+      have ht' := hlift _ t ht
+      have hξ := prop_curvesSmallEquivalence_inverse_obj hQ ξ.property
+      have hη := prop_curvesSmallEquivalence_inverse_obj hQ η.property
+      have hstab := stable_of_smooth_cohomological_genus B hZ hg hξ
+      have hηK : (curvesProjectionOver B hZ).obj (E.obj η.obj) =
+          siteObject B integerBase hZ q.field_mem
+            (Spec.map (CommRingCat.ofHom (algebraMap q.R q.K)) ≫ q.base) := by
+        have := hc'
+        exact IsHomLift.domain_eq _ q.genericMap (E.map c.hom)
+      have hξR : (curvesProjectionOver B hZ).obj (E.obj ξ.obj) =
+          siteObject B integerBase hZ q.ring_mem q.base := by
+        have := ht'
+        exact IsHomLift.domain_eq _ (𝟙 _) (E.map t.hom)
+      obtain ⟨_, _, huniq⟩ := uniqueStableModels B hZ g q.R q.K q.ring_mem q.field_mem
+        q.base q.genericMap q.genericMap_left (E.map c.hom) (E.map c.hom) (𝟙 _)
+        hstab hstab hη.1 hη.2 hc' hc' (IsHomLift.id hηK)
+      have htc' : c.hom ≫ t.hom = c.hom := congrArg (fun m => m.hom) htc
+      have h₁ := huniq (E.map t.hom)
+        ⟨ht', by rw [← Functor.map_comp, htc', Category.id_comp]⟩
+      have h₂ := huniq (𝟙 _) ⟨IsHomLift.id hξR, by rw [Category.id_comp, Category.comp_id]⟩
+      apply ObjectProperty.hom_ext
+      apply E.map_injective
+      exact h₁.trans (h₂.symm.trans (E.map_id ξ.obj).symm)
+    · intro q hq _ ξ ξ' η η' c c' s _ hc hc' hs _
+      have := hq
+      have hc₀ := hlift _ c hc
+      have hc₀' := hlift _ c' hc'
+      have hs₀ := hlift _ s hs
+      have hξ := prop_curvesSmallEquivalence_inverse_obj hQ ξ.property
+      have hξ' := prop_curvesSmallEquivalence_inverse_obj hQ ξ'.property
+      have hη := prop_curvesSmallEquivalence_inverse_obj hQ η.property
+      obtain ⟨t₀, ⟨ht₀, htc₀⟩, _⟩ := uniqueStableModels B hZ g q.R q.K q.ring_mem
+        q.field_mem q.base q.genericMap q.genericMap_left (E.map c.hom) (E.map c'.hom)
+        (E.map s.hom) (stable_of_smooth_cohomological_genus B hZ hg hξ)
+        (stable_of_smooth_cohomological_genus B hZ hg hξ') hη.1 hη.2 hc₀ hc₀' hs₀
+      let t₁ : ξ.obj ⟶ ξ'.obj := E.preimage t₀
+      have hmt : E.map t₁ = t₀ := Functor.map_preimage _ t₀
+      refine ⟨ObjectProperty.homMk t₁, ?_, ?_⟩
+      · refine (Functor.isHomLift_comp_iff W.property.ι _ _ _).2 ?_
+        refine (isHomLift_curvesSmallEquivalence_inverse_map_iff _ t₁).2 ?_
+        rwa [hmt]
+      · apply ObjectProperty.hom_ext
+        apply E.map_injective
+        change E.map (c.hom ≫ t₁) = E.map (s.hom ≫ c'.hom)
+        rwa [Functor.map_comp, Functor.map_comp, hmt]
+  change Stack.AlgebraicStacks.IsSeparated B integerBase hZ
+    (Stack.structureMorphism B integerBase hZ W.toAlgebraicStack)
+  simpa only [f, Stack.comp_structureMorphism] using hsep
 
 theorem smoothStack_quasiDM (g : ℕ) (hg : 2 ≤ g) :
     Stack.IsQuasiDMOver B integerBase hZ (smoothStack B hZ g hg) := by

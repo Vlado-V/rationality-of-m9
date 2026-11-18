@@ -71,7 +71,7 @@ theorem functional_integrand : functional integrand = 16 := by
   have h : integrand * ((X 0-X 1)*(X 0-X 2)*(X 1-X 2)) =
       LagrangianDegree.flagNormalizer * LagrangianDegree.degreePolynomial := by
     unfold integrand LagrangianDegree.flagNormalizer LagrangianDegree.degreePolynomial
-    ring
+    simp only [mul_assoc]
   rw [h,LagrangianDegree.flag_normalized_coefficient]
   norm_num
 
