@@ -34,7 +34,7 @@ related_formalizations:
   relationship: builds-on
   note: Native algebraic geometry, curve families, stacks and independently constructed coarse moduli
     spaces used on the proof side; Apache-2.0.
-- id: https://github.com/Vlado-V/Stacks/tree/28a7b7fa03f140a698cb66d5f578cd344175d802
+- id: https://github.com/Vlado-V/Stacks/tree/4f4a045e809ef89eede7c6d9850c07bd3ecc5960
   relationship: builds-on
   note: Exact Stacks proof dependency used by this build. It narrows imports and separates
     the rank-zero projective bundle lemma from its larger module. The upstream revision

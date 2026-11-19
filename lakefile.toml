@@ -10,7 +10,7 @@ rev = "56a005855ea17e0b0958f73ec801ae140b0a1679"
 [[require]]
 name = "Stacks"
 git = "https://github.com/Vlado-V/Stacks"
-rev = "28a7b7fa03f140a698cb66d5f578cd344175d802"
+rev = "4f4a045e809ef89eede7c6d9850c07bd3ecc5960"
 
 [[lean_lib]]
 name = "M9StacksIntegration"
