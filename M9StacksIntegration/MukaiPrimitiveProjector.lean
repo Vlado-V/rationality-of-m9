@@ -48,12 +48,43 @@ theorem wedgeSigma_eq_product (v : V K) :
 
 theorem contraction_wedgeSigma (v : V K) :
     contraction K (wedgeSigma K v) = (2 : K) • v := by
+  let E : V K := ∑ i : Fin 3, v (eIndex i) • e K i
+  let F : V K := ∑ i : Fin 3, v (fIndex i) • f K i
+  have hv : E + F = v := by
+    simpa only [Fin.sum_univ_add (a := 3) (b := 3), E, F, e, f, eIndex, fIndex,
+      basisVector, Pi.basisFun_apply, Pi.basisFun_repr] using (Pi.basisFun K (Fin 6)).sum_repr v
+  have he (i : Fin 3) : omega K (e K i) v = v (fIndex i) := by
+    rw [← congrArg (fun w => omega K (e K i) w) hv]
+    simp only [E, F, map_add, map_sum, map_smul, omega_e_e, omega_e_f,
+      smul_zero, Finset.sum_const_zero, zero_add]
+    rw [Fintype.sum_eq_single i]
+    · simp
+    · intro j hj
+      simp [Ne.symm hj]
+  have hf (i : Fin 3) : omega K (f K i) v = -v (eIndex i) := by
+    rw [← congrArg (fun w => omega K (f K i) w) hv]
+    simp only [E, F, map_add, map_sum, map_smul, omega_f_e, omega_f_f,
+      smul_zero, Finset.sum_const_zero, add_zero]
+    rw [Fintype.sum_eq_single i]
+    · simp [smul_eq_mul]
+    · intro j hj
+      simp [Ne.symm hj]
+  have hdiag (i : Fin 3) : omega K (e K i) (f K i) = 1 := by
+    have pair := omega_e_f K i i
+    rw [ite_eq_left rfl] at pair
+    simp only [omega] at pair ⊢
+    exact pair
+  have hc : (∑ _ : Fin 3, v) = (3 : K) • v := by
+    simpa only [Finset.sum_const, Finset.card_univ, Fintype.card_fin, Nat.cast_ofNat] using
+      (Nat.cast_smul_eq_nsmul K 3 v).symm
   rw [wedgeSigma_apply, map_sum]
-  simp only [contraction_wedge3]
-  funext j
-  fin_cases j <;>
-    simp [omega, omegaValue, e, f, eIndex, fIndex, basisVector,
-      Fin.sum_univ_succ, Pi.single_apply, smul_eq_mul] <;> ring
+  simp only [contraction_wedge3, hdiag, he, hf, one_smul, neg_smul,
+    ← sub_eq_add_neg, Finset.sum_sub_distrib]
+  change (∑ _ : Fin 3, v) - F - E = _
+  rw [hc, sub_sub, add_comm F E, hv]
+  calc
+    (3 : K) • v - v = ((3 : K) - 1) • v := by rw [sub_smul, one_smul]
+    _ = (2 : K) • v := by norm_num
 
 theorem contraction_map (g : V K →ₗ[K] V K)
     (hg : ∀ v w, omega K (g v) (g w) = omega K v w) (w : Third K) :
