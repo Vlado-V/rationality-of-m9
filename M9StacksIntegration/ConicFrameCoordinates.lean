@@ -170,8 +170,18 @@ theorem jacobian_atIdentity :
   simp only [dualPivot,dualFrame_tangent]
   change (tangentPivot K _).det.fst * (tangentNumerator K _ j).snd -
     (tangentNumerator K _ j).fst * (tangentPivot K _).det.snd = _
+  have hRows (v : Fin 8 → K) :
+      (identityJacobian K).transpose.mulVec v =
+        ![2*v 7,-2*v 3+2*v 7,-2*v 0,-2*v 2,-2*v 1+2*v 5,2*v 5,2*v 6,2*v 6-2*v 4] := by
+    funext k
+    fin_cases k <;>
+      simp [identityJacobian, Matrix.mulVec, dotProduct, Fin.sum_univ_succ] <;> ring
+  have hBasis : (fun k : Fin 8 => if i = k then (1 : K) else 0) = Pi.single i 1 := by
+    funext k
+    simp [Pi.single_apply, eq_comm]
   rw [tangent_jacobian]
-  fin_cases i <;> fin_cases j <;> norm_num [identityJacobian]
+  rw [← hRows (fun k => if i = k then 1 else 0)]
+  simp only [hBasis, Matrix.mulVec_single_one, Matrix.col_apply, Matrix.transpose_apply]
 
 variable [CharZero K]
 
