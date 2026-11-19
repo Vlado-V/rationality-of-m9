@@ -5,6 +5,7 @@ public import M9StacksIntegration.MukaiTensorSequence
 public import M9StacksIntegration.MukaiHomSerreTrace
 public import M9StacksIntegration.MukaiCurvePairingGeometry
 public import M9StacksIntegration.MukaiEulerEven
+public import Mathlib.LinearAlgebra.PerfectPairing.Basic
 
 /-!
 # Actual Mukai pairing from native Hom--Serre duality
