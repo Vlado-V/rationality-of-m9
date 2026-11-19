@@ -8,6 +8,14 @@ on:
         description: Exactly 12 lowercase alphanumeric characters
         required: true
         type: string
+      execution_profile:
+        description: Palomar verification profile
+        required: true
+        type: choice
+        default: palomar-standard-v1
+        options:
+          - palomar-standard-v1
+          - palomar-namespace-32x64-v1
 
 permissions:
   contents: read
@@ -21,6 +29,6 @@ jobs:
       pipeline_commit: 14aa8d6b3c2f14a8540605e37144560b9a00e7e7
       request_id: ${{ inputs.request_id }}
       mode: full
-      execution_profile: palomar-standard-v1
+      execution_profile: ${{ inputs.execution_profile }}
       options: >-
         {"comparator_config_path":"comparator.json","authorization_relationship":"I have approval from a responsible author or maintainer"}
