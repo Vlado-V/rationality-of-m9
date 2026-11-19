@@ -137,19 +137,70 @@ theorem point_rebase (t : ℤ) (F : State → M) (ctx : Context) (i : Fin 5)
       List.sum_nil, Function.comp_apply]
     simp [transport, pin, liftMask, Nat.testBit, Nat.shiftRight_eq_div_pow, List.filter_cons]
 
+private theorem select_or (n : ℕ) (p q : Bool) :
+    (if p || q then n else 0) = (if p then n else 0) ||| (if q then n else 0) := by
+  cases p <;> cases q <;> simp
+
+private theorem liftMask_or (f : Fin 5 → ℕ) (a b : ℕ) :
+    liftMask f (a ||| b) = liftMask f a ||| liftMask f b := by
+  simp only [liftMask, Nat.testBit_or, select_or]
+  let : Std.Associative (fun a b : ℕ => a ||| b) := ⟨Nat.lor_assoc⟩
+  let : Std.Commutative (fun a b : ℕ => a ||| b) := ⟨Nat.lor_comm⟩
+  ac_rfl
+
+/-- Transporting the seven terms of the relation uses only the three images
+of the distinguished masks and the list of nonzero spectator images. -/
+private theorem transport_gamma (left right : Context) (a b c a' b' c' : ℕ)
+    (s s' : State)
+    (ha : liftMask left.label a = liftMask right.label a')
+    (hb : liftMask left.label b = liftMask right.label b')
+    (hc : liftMask left.label c = liftMask right.label c')
+    (hs : (s.map (liftMask left.label)).filter (· ≠ 0) =
+      (s'.map (liftMask right.label)).filter (· ≠ 0))
+    (hrest : left.spectator = right.spectator) :
+    (gamma a b c s).map (fun (p, n) => (transport left p, n)) =
+      (gamma a' b' c' s').map (fun (p, n) => (transport right p, n)) := by
+  have hCons (m m' : ℕ) (hm : liftMask left.label m = liftMask right.label m') :
+      transport left (canonical (m :: s)) = transport right (canonical (m' :: s')) := by
+    simp only [transport_canonical]
+    simp only [transport, List.map_cons, List.filter_cons, hm, hs, hrest]
+  have hab : liftMask left.label (a ||| b) = liftMask right.label (a' ||| b') := by
+    simp only [liftMask_or, ha, hb]
+  have hac : liftMask left.label (a ||| c) = liftMask right.label (a' ||| c') := by
+    simp only [liftMask_or, ha, hc]
+  have hbc : liftMask left.label (b ||| c) = liftMask right.label (b' ||| c') := by
+    simp only [liftMask_or, hb, hc]
+  have habc : liftMask left.label (a ||| b ||| c) = liftMask right.label (a' ||| b' ||| c') := by
+    simp only [liftMask_or, ha, hb, hc]
+  simp only [gamma, List.map_cons, List.map_nil, hCons _ _ ha, hCons _ _ hb,
+    hCons _ _ hc, hCons _ _ hab, hCons _ _ hac, hCons _ _ hbc, hCons _ _ habc]
+
 theorem diagonal_rebase_special_other (t : ℤ) (F : State → M) (ctx : Context)
     (i j : Fin 5) (hi : i.val < 3) (hj : 3 ≤ j.val) :
     realization t (F ∘ transport ctx) (diagonalExpected i.val j.val) =
       realization t (F ∘ transport (merge ctx i j)) (embed localGamma) := by
-  fin_cases i <;> fin_cases j <;> simp at hi hj
-  all_goals
-    simp only [diagonalExpected, enlargeSpecial]
-    norm_num
-    simp only [realization_embed, localGamma, gamma, List.map_cons, List.map_nil,
-      List.sum_cons, List.sum_nil, Function.comp_apply, transport_canonical]
-    simp [transport, merge, liftMask, bit, Nat.testBit, Nat.shiftRight_eq_div_pow,
-      List.filter_cons, Nat.lor_assoc, lor_left_comm, Nat.lor_comm]
-  all_goals simp only [label_swap_zero_one, label_swap_zero_one_prop]
+  have hne : i.val ≠ j.val := by omega
+  simp only [diagonalExpected, ite_eq_right hne, ite_eq_left hi,
+    ite_eq_right (Nat.not_lt.mpr hj), enlargeSpecial, localGamma, realization_embed]
+  let a := if i.val = 0 then 1 ||| bit j.val else 1
+  let b := if i.val = 1 then 2 ||| bit j.val else 2
+  let c := if i.val = 2 then 4 ||| bit j.val else 4
+  let s := [8, 16].erase (bit j.val)
+  let d := merge ctx i j
+  have hMasks :
+      (liftMask ctx.label a, liftMask ctx.label b, liftMask ctx.label c,
+        (s.map (liftMask ctx.label)).filter (· ≠ 0)) =
+      (liftMask d.label 1, liftMask d.label 2, liftMask d.label 4,
+        ([8, 16].map (liftMask d.label)).filter (· ≠ 0)) := by
+    fin_cases i <;> fin_cases j <;> simp at hi hj
+    all_goals
+      simp [a, b, c, s, d, merge, liftMask, bit, Nat.testBit,
+        Nat.shiftRight_eq_div_pow, List.filter_cons, Nat.lor_comm]
+  have h := transport_gamma ctx d a b c 1 2 4 s [8, 16]
+    (congrArg Prod.fst hMasks) (congrArg (fun x => x.2.1) hMasks)
+    (congrArg (fun x => x.2.2.1) hMasks) (congrArg (fun x => x.2.2.2) hMasks) rfl
+  simpa only [List.map_map, Function.comp_def] using
+    congrArg (fun c : SourceCombination => (c.map fun p => p.2 • F p.1).sum) h
 
 theorem point_kills_special (t : ℤ) (F : State → M) (i : Fin 5) (hi : i.val < 3) :
     realization t F (pointExpected i.val) = 0 := by

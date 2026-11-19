@@ -44,6 +44,29 @@ def torus (u : Rˣ) : Matrix.symplecticGroup (Fin 3) R :=
 def gauss (u : Rˣ) (B C : Matrix (Fin 3) (Fin 3) R) (hB : Bᵀ = B) (hC : Cᵀ = C) :
     Matrix.symplecticGroup (Fin 3) R := upper B hB * torus u * lower C hC
 
+private lemma gauss_val_blocks (u : Rˣ) (B C : Matrix (Fin 3) (Fin 3) R)
+    (hB : Bᵀ = B) (hC : Cᵀ = C) :
+    (gauss u B C hB hC).val =
+      Matrix.fromBlocks
+        (Matrix.diagonal ![(u : R), 1, 1] + B * Matrix.diagonal ![(↑u⁻¹ : R), 1, 1] * C)
+        (B * Matrix.diagonal ![(↑u⁻¹ : R), 1, 1])
+        (Matrix.diagonal ![(↑u⁻¹ : R), 1, 1] * C)
+        (Matrix.diagonal ![(↑u⁻¹ : R), 1, 1]) := by
+  simp only [gauss, upper, torus, lower, Submonoid.coe_mul]
+  change Matrix.fromBlocks 1 B 0 1 *
+    Matrix.fromBlocks (Matrix.diagonal ![(u : R), 1, 1]) 0 0
+      (Matrix.diagonal ![(↑u⁻¹ : R), 1, 1]) * Matrix.fromBlocks 1 0 C 1 = _
+  rw [Matrix.fromBlocks_multiply, Matrix.fromBlocks_multiply]
+  simp only [Matrix.one_mul, Matrix.mul_one, Matrix.zero_mul, Matrix.mul_zero, zero_add, add_zero]
+
+private lemma scale_gauss_upper (u : Rˣ) (i : Fin 3) :
+    (u : R) * (![(u : R), 1, 1] : Fin 3 → R) i = ![(u : R)^2, (u : R), (u : R)] i := by
+  fin_cases i <;> simp [pow_two]
+
+private lemma scale_gauss_lower (u : Rˣ) (i : Fin 3) :
+    (u : R) * (![(↑u⁻¹ : R), 1, 1] : Fin 3 → R) i = ![1, (u : R), (u : R)] i := by
+  fin_cases i <;> simp
+
 /-- The original polynomial matrix is the unit-scaled genuine symplectic matrix. -/
 theorem gauss_scaled (u : Rˣ) (B C : Matrix (Fin 3) (Fin 3) R)
     (hB : Bᵀ = B) (hC : Cᵀ = C) :
@@ -68,13 +91,21 @@ theorem gauss_scaled (u : Rˣ) (B C : Matrix (Fin 3) (Fin 3) R)
   |
     change (u : R) * (gauss u B C hB hC).val (Sum.inr i) (Sum.inr j) =
       M9.PrimitiveOpenOrbit.gaussEntries (u : R) B C (Fin.natAdd 3 i) (Fin.natAdd 3 j)
-  all_goals
-    simp only [M9.PrimitiveOpenOrbit.gaussEntries, Fin.addCases_left, Fin.addCases_right]
-    fin_cases i <;> fin_cases j <;>
-      simp [gauss, upper, lower, torus,
-        Matrix.mul_apply, Fin.sum_univ_succ, Matrix.diagonal,
-        Matrix.one_apply, Matrix.fromBlocks, mul_assoc, mul_left_comm, mul_comm] <;>
-      ring_nf <;> simp only [Units.mul_inv, one_mul] <;> ring
+  all_goals rw [gauss_val_blocks]
+  all_goals simp only [M9.PrimitiveOpenOrbit.gaussEntries, Fin.addCases_left, Fin.addCases_right]
+  · simp only [Matrix.fromBlocks_apply₁₁, Matrix.add_apply, Matrix.diagonal_apply, mul_add]
+    congr 1
+    · split_ifs <;> simp [scale_gauss_upper]
+    · rw [Matrix.mul_apply, Finset.mul_sum]
+      refine Finset.sum_congr rfl fun k _ => ?_
+      rw [Matrix.mul_diagonal, ← scale_gauss_lower u k]
+      ac_rfl
+  · rw [Matrix.fromBlocks_apply₁₂, Matrix.mul_diagonal, ← scale_gauss_lower u j]
+    ac_rfl
+  · rw [Matrix.fromBlocks_apply₂₁, Matrix.diagonal_mul, ← scale_gauss_lower u i]
+    ac_rfl
+  · rw [Matrix.fromBlocks_apply₂₂, Matrix.diagonal_apply]
+    split_ifs <;> simp [scale_gauss_lower]
 
 variable (K : Type*) [Field K]
 

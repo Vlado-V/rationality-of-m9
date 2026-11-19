@@ -231,6 +231,8 @@ theorem freeIntegrand_cast_native :
     (freeFlat_cast_fundamental K)).property
   dsimp only [transportedFundamentalCapData] at hp
   unfold freeClass nativeClassB fundamentalB
-  exact hp
+  run_tac Lean.Elab.Tactic.withMainContext do
+    let p ← Lean.Meta.getLocalDeclFromUserName `hp
+    Lean.Elab.Tactic.closeMainGoal `exact p.toExpr
 
 end M9Native.LagrangianFlagModelComparison

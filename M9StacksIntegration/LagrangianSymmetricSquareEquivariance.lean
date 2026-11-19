@@ -55,6 +55,18 @@ theorem monomialBasis_eq_product (i : Fin 6) :
 /-- The explicit half-coordinate normalization is exactly the actual
 symmetric bilinear universal-property map. -/
 theorem toMatrices_eq_squareEquiv : toMatrices R=(squareEquivMatrices R).toLinearMap := by
+  have hcoordinates (B : symmetricMatrices R) (k : Fin 6) :
+      coordinates R B k=B.val (upperPair k).1 (upperPair k).2 := by
+    fin_cases k <;> rfl
+  have hhalf (v : Fin 6 → R) (k : Fin 6) :
+      halfCoordinates R v k=
+        (if (upperPair k).1=(upperPair k).2 then 1 else ⅟(2:R))*v k := by
+    fin_cases k <;> simp [halfCoordinates,upperPair]
+  have hdelta (a b c d : Fin 3) :
+      (Pi.single a (1:R) : Fin 3 → R) c*(Pi.single b (1:R) : Fin 3 → R) d=
+        if a=c ∧ b=d then 1 else 0 := by
+    by_cases ha : a=c <;> by_cases hb : b=d <;>
+      simp [ha,hb,eq_comm]
   apply (monomialBasis R).ext
   intro i
   have ht : toMatrices R (monomialBasis R i)=
@@ -66,8 +78,39 @@ theorem toMatrices_eq_squareEquiv : toMatrices R=(squareEquivMatrices R).toLinea
   change coordinates R (outer R _ _)=
     halfCoordinates R ((monomialBasis R).equivFun (monomialBasis R i))
   funext j
-  fin_cases i <;> fin_cases j <;>
-    simp [coordinates,outer,halfCoordinates,upperPair,Pi.single_apply,one_add_one_eq_two]
+  rw [hcoordinates,hhalf,Module.Basis.equivFun_self]
+  change ⅟(2:R)*
+      ((Pi.single (upperPair i).1 (1:R) : Fin 3 → R) (upperPair j).1*
+          (Pi.single (upperPair i).2 (1:R) : Fin 3 → R) (upperPair j).2+
+        (Pi.single (upperPair i).2 (1:R) : Fin 3 → R) (upperPair j).1*
+          (Pi.single (upperPair i).1 (1:R) : Fin 3 → R) (upperPair j).2)=
+    (if (upperPair j).1=(upperPair j).2 then 1 else ⅟(2:R))*
+      (if i=j then 1 else 0)
+  rw [hdelta,hdelta]
+  by_cases hij : i=j
+  · subst j
+    by_cases hd : (upperPair i).1=(upperPair i).2
+    · simp [hd,one_add_one_eq_two]
+    · simp [hd,Ne.symm hd]
+  · have hforward : ¬ ((upperPair i).1=(upperPair j).1 ∧
+        (upperPair i).2=(upperPair j).2) := by
+      rintro ⟨ha,hb⟩
+      apply hij
+      apply quadraticIndex_injective
+      apply Subtype.ext
+      change Finsupp.single (upperPair i).1 1+Finsupp.single (upperPair i).2 1=
+        Finsupp.single (upperPair j).1 1+Finsupp.single (upperPair j).2 1
+      rw [ha,hb]
+    have hreverse : ¬ ((upperPair i).2=(upperPair j).1 ∧
+        (upperPair i).1=(upperPair j).2) := by
+      rintro ⟨ha,hb⟩
+      apply hij
+      apply quadraticIndex_injective
+      apply Subtype.ext
+      change Finsupp.single (upperPair i).1 1+Finsupp.single (upperPair i).2 1=
+        Finsupp.single (upperPair j).1 1+Finsupp.single (upperPair j).2 1
+      rw [ha,hb,add_comm]
+    simp [hij,hforward,hreverse]
 
 theorem squareEquiv_product (v w : Fin 3 → R) :
     squareEquivMatrices R (SymPow.sqMul (LinearMap.id : (Fin 3 → R) →ₗ[R] (Fin 3 → R))

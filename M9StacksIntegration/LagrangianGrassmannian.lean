@@ -425,23 +425,56 @@ def qCoordinate (i j : Fin 3) : Third K →ₗ[K] K :=
 def pCoordinate (i j : Fin 3) : Third K →ₗ[K] K :=
   coordinate K (fIndex i) (eIndex (nextOne j)) (eIndex (nextTwo j))
 
+private theorem exteriorIndex_disjoint (i j : Fin 3) : eIndex i ≠ fIndex j := by
+  intro h
+  have hv := congrArg Fin.val h
+  simp only [eIndex, fIndex, Fin.val_castAdd, Fin.val_natAdd] at hv
+  omega
+
+private theorem exteriorBasis_e_e (i j : Fin 3) :
+    e K j (eIndex i) = if i = j then 1 else 0 := by
+  simp [e, eIndex, basisVector, Pi.single_apply, Fin.ext_iff]
+
+private theorem exteriorBasis_f_f (i j : Fin 3) :
+    f K j (fIndex i) = if i = j then 1 else 0 := by
+  simp [f, fIndex, basisVector, Pi.single_apply, Fin.ext_iff]
+
+private theorem exteriorBasis_e_f (i j : Fin 3) : e K j (fIndex i) = 0 := by
+  simp [e, basisVector, (exteriorIndex_disjoint j i).symm]
+
+private theorem exteriorBasis_f_e (i j : Fin 3) : f K j (eIndex i) = 0 := by
+  simp [f, basisVector, exteriorIndex_disjoint i j]
+
+/-- The cyclic two-coordinate minor is the Kronecker delta for its omitted index. -/
+private theorem exteriorCofactorMinor (j l : Fin 3) :
+    (if nextOne j = nextOne l then (1 : K) else 0) *
+      (if nextTwo j = nextTwo l then 1 else 0) -
+    (if nextTwo j = nextOne l then 1 else 0) *
+      (if nextOne j = nextTwo l then 1 else 0) =
+    (if j = l then 1 else 0) := by
+  fin_cases j <;> fin_cases l <;> norm_num [nextOne, nextTwo]
+
 @[simp] theorem qCoordinate_q (i j k l : Fin 3) :
     qCoordinate K i j (q K k l) = if i=k then if j=l then 1 else 0 else 0 := by
-  fin_cases i <;> fin_cases j <;> fin_cases k <;> fin_cases l <;>
-    norm_num [qCoordinate, q, e, f, nextOne, nextTwo, eIndex, fIndex, basisVector]
+  simp only [qCoordinate, q, coordinate_wedge3, exteriorBasis_e_e, exteriorBasis_f_f,
+    exteriorBasis_e_f, exteriorBasis_f_e, zero_mul, mul_zero, add_zero, sub_zero,
+    mul_assoc, ← mul_sub, exteriorCofactorMinor]
+  split <;> simp_all
 
 @[simp] theorem qCoordinate_p (i j k l : Fin 3) : qCoordinate K i j (p K k l) = 0 := by
-  fin_cases i <;> fin_cases j <;> fin_cases k <;> fin_cases l <;>
-    norm_num [qCoordinate, p, e, f, nextOne, nextTwo, eIndex, fIndex, basisVector]
+  simp only [qCoordinate, p, coordinate_wedge3, exteriorBasis_e_f, exteriorBasis_f_e,
+    zero_mul, mul_zero, add_zero, sub_zero]
 
 @[simp] theorem pCoordinate_p (i j k l : Fin 3) :
     pCoordinate K i j (p K k l) = if i=k then if j=l then 1 else 0 else 0 := by
-  fin_cases i <;> fin_cases j <;> fin_cases k <;> fin_cases l <;>
-    norm_num [pCoordinate, p, e, f, nextOne, nextTwo, eIndex, fIndex, basisVector]
+  simp only [pCoordinate, p, coordinate_wedge3, exteriorBasis_e_e, exteriorBasis_f_f,
+    exteriorBasis_e_f, exteriorBasis_f_e, zero_mul, mul_zero, add_zero, sub_zero,
+    mul_assoc, ← mul_sub, exteriorCofactorMinor]
+  split <;> simp_all
 
 @[simp] theorem pCoordinate_q (i j k l : Fin 3) : pCoordinate K i j (q K k l) = 0 := by
-  fin_cases i <;> fin_cases j <;> fin_cases k <;> fin_cases l <;>
-    norm_num [pCoordinate, q, e, f, nextOne, nextTwo, eIndex, fIndex, basisVector]
+  simp only [pCoordinate, q, coordinate_wedge3, exteriorBasis_e_f, exteriorBasis_f_e,
+    zero_mul, mul_zero, add_zero, sub_zero]
 
 
 @[simp] theorem aCoordinate_a : aCoordinate K (a K) = 1 := by

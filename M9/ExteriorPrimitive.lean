@@ -235,23 +235,56 @@ def qCoordinate (i j : Fin 3) : Third K →ₗ[K] K :=
 def pCoordinate (i j : Fin 3) : Third K →ₗ[K] K :=
   coordinate K (fIndex i) (eIndex (nextOne j)) (eIndex (nextTwo j))
 
+private theorem exteriorIndex_disjoint (i j : Fin 3) : eIndex i ≠ fIndex j := by
+  intro h
+  have hv := congrArg Fin.val h
+  simp only [eIndex, fIndex, Fin.val_castAdd, Fin.val_natAdd] at hv
+  omega
+
+private theorem exteriorBasis_e_e (i j : Fin 3) :
+    e K j (eIndex i) = if i = j then 1 else 0 := by
+  simp [e, eIndex, basisVector, Pi.single_apply, Fin.ext_iff]
+
+private theorem exteriorBasis_f_f (i j : Fin 3) :
+    f K j (fIndex i) = if i = j then 1 else 0 := by
+  simp [f, fIndex, basisVector, Pi.single_apply, Fin.ext_iff]
+
+private theorem exteriorBasis_e_f (i j : Fin 3) : e K j (fIndex i) = 0 := by
+  simp [e, basisVector, (exteriorIndex_disjoint j i).symm]
+
+private theorem exteriorBasis_f_e (i j : Fin 3) : f K j (eIndex i) = 0 := by
+  simp [f, basisVector, exteriorIndex_disjoint i j]
+
+/-- The cyclic two-coordinate minor is the Kronecker delta for its omitted index. -/
+private theorem exteriorCofactorMinor (j l : Fin 3) :
+    (if nextOne j = nextOne l then (1 : K) else 0) *
+      (if nextTwo j = nextTwo l then 1 else 0) -
+    (if nextTwo j = nextOne l then 1 else 0) *
+      (if nextOne j = nextTwo l then 1 else 0) =
+    (if j = l then 1 else 0) := by
+  fin_cases j <;> fin_cases l <;> norm_num [nextOne, nextTwo]
+
 @[simp] theorem qCoordinate_q (i j k l : Fin 3) :
     qCoordinate K i j (q K k l) = if i=k then if j=l then 1 else 0 else 0 := by
-  fin_cases i <;> fin_cases j <;> fin_cases k <;> fin_cases l <;>
-    norm_num [qCoordinate, q, e, f, nextOne, nextTwo, eIndex, fIndex, basisVector]
+  simp only [qCoordinate, q, coordinate_wedge3, exteriorBasis_e_e, exteriorBasis_f_f,
+    exteriorBasis_e_f, exteriorBasis_f_e, zero_mul, mul_zero, add_zero, sub_zero,
+    mul_assoc, ← mul_sub, exteriorCofactorMinor]
+  split <;> simp_all
 
 @[simp] theorem qCoordinate_p (i j k l : Fin 3) : qCoordinate K i j (p K k l) = 0 := by
-  fin_cases i <;> fin_cases j <;> fin_cases k <;> fin_cases l <;>
-    norm_num [qCoordinate, p, e, f, nextOne, nextTwo, eIndex, fIndex, basisVector]
+  simp only [qCoordinate, p, coordinate_wedge3, exteriorBasis_e_f, exteriorBasis_f_e,
+    zero_mul, mul_zero, add_zero, sub_zero]
 
 @[simp] theorem pCoordinate_p (i j k l : Fin 3) :
     pCoordinate K i j (p K k l) = if i=k then if j=l then 1 else 0 else 0 := by
-  fin_cases i <;> fin_cases j <;> fin_cases k <;> fin_cases l <;>
-    norm_num [pCoordinate, p, e, f, nextOne, nextTwo, eIndex, fIndex, basisVector]
+  simp only [pCoordinate, p, coordinate_wedge3, exteriorBasis_e_e, exteriorBasis_f_f,
+    exteriorBasis_e_f, exteriorBasis_f_e, zero_mul, mul_zero, add_zero, sub_zero,
+    mul_assoc, ← mul_sub, exteriorCofactorMinor]
+  split <;> simp_all
 
 @[simp] theorem pCoordinate_q (i j k l : Fin 3) : pCoordinate K i j (q K k l) = 0 := by
-  fin_cases i <;> fin_cases j <;> fin_cases k <;> fin_cases l <;>
-    norm_num [pCoordinate, q, e, f, nextOne, nextTwo, eIndex, fIndex, basisVector]
+  simp only [pCoordinate, q, coordinate_wedge3, exteriorBasis_e_f, exteriorBasis_f_e,
+    zero_mul, mul_zero, add_zero, sub_zero]
 
 
 @[simp] theorem aCoordinate_a : aCoordinate K (a K) = 1 := by
@@ -715,160 +748,42 @@ set_option maxHeartbeats 4000000
 
 private theorem pairing_q_p_diagonal (i j : Fin 3) :
     ambientPairing K (q K i j) (p K j i) = 1 := by
-  fin_cases i <;> fin_cases j
-  · simp only [q, p, wedge3, ambientPairing_ιMulti]
-    change (Matrix.of fun r s : Fin 6 =>
-      Fin.append ![e K 0,f K (nextOne 0),f K (nextTwo 0)]
-        ![f K 0,e K (nextOne 0),e K (nextTwo 0)] r s).det = 1
-    let σ : Equiv.Perm (Fin 6) := Equiv.swap (2 : Fin 6) 5 * Equiv.swap (1 : Fin 6) 4
-    have hsign : Equiv.Perm.sign σ = 1 := by
-      simp [σ, Equiv.Perm.sign_swap']
-    have hM : (Matrix.of fun r s : Fin 6 =>
-        Fin.append ![e K 0,f K (nextOne 0),f K (nextTwo 0)]
-          ![f K 0,e K (nextOne 0),e K (nextTwo 0)] r s) =
-        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
-      ext r s
-      fin_cases r <;>
-        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
-          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
-    rw [hM, Matrix.det_permute, hsign]
-    simp
-  · simp only [q, p, wedge3, ambientPairing_ιMulti]
-    change (Matrix.of fun r s : Fin 6 =>
-      Fin.append ![e K 0,f K (nextOne 1),f K (nextTwo 1)]
-        ![f K 1,e K (nextOne 0),e K (nextTwo 0)] r s).det = 1
-    let σ : Equiv.Perm (Fin 6) := Equiv.swap (2 : Fin 6) 1 * Equiv.swap (2 : Fin 6) 4 * Equiv.swap (2 : Fin 6) 3 * Equiv.swap (1 : Fin 6) 5
-    have hsign : Equiv.Perm.sign σ = 1 := by
-      simp [σ, Equiv.Perm.sign_swap']
-    have hM : (Matrix.of fun r s : Fin 6 =>
-        Fin.append ![e K 0,f K (nextOne 1),f K (nextTwo 1)]
-          ![f K 1,e K (nextOne 0),e K (nextTwo 0)] r s) =
-        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
-      ext r s
-      fin_cases r <;>
-        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
-          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
-    rw [hM, Matrix.det_permute, hsign]
-    simp
-  · simp only [q, p, wedge3, ambientPairing_ιMulti]
-    change (Matrix.of fun r s : Fin 6 =>
-      Fin.append ![e K 0,f K (nextOne 2),f K (nextTwo 2)]
-        ![f K 2,e K (nextOne 0),e K (nextTwo 0)] r s).det = 1
-    let σ : Equiv.Perm (Fin 6) := Equiv.swap (2 : Fin 6) 1 * Equiv.swap (1 : Fin 6) 5 * Equiv.swap (2 : Fin 6) 4 * Equiv.swap (1 : Fin 6) 3
-    have hsign : Equiv.Perm.sign σ = 1 := by
-      simp [σ, Equiv.Perm.sign_swap']
-    have hM : (Matrix.of fun r s : Fin 6 =>
-        Fin.append ![e K 0,f K (nextOne 2),f K (nextTwo 2)]
-          ![f K 2,e K (nextOne 0),e K (nextTwo 0)] r s) =
-        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
-      ext r s
-      fin_cases r <;>
-        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
-          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
-    rw [hM, Matrix.det_permute, hsign]
-    simp
-  · simp only [q, p, wedge3, ambientPairing_ιMulti]
-    change (Matrix.of fun r s : Fin 6 =>
-      Fin.append ![e K 1,f K (nextOne 0),f K (nextTwo 0)]
-        ![f K 0,e K (nextOne 1),e K (nextTwo 1)] r s).det = 1
-    let σ : Equiv.Perm (Fin 6) := Equiv.swap (0 : Fin 6) 2 * Equiv.swap (2 : Fin 6) 5 * Equiv.swap (0 : Fin 6) 4 * Equiv.swap (0 : Fin 6) 1
-    have hsign : Equiv.Perm.sign σ = 1 := by
-      simp [σ, Equiv.Perm.sign_swap']
-    have hM : (Matrix.of fun r s : Fin 6 =>
-        Fin.append ![e K 1,f K (nextOne 0),f K (nextTwo 0)]
-          ![f K 0,e K (nextOne 1),e K (nextTwo 1)] r s) =
-        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
-      ext r s
-      fin_cases r <;>
-        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
-          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
-    rw [hM, Matrix.det_permute, hsign]
-    simp
-  · simp only [q, p, wedge3, ambientPairing_ιMulti]
-    change (Matrix.of fun r s : Fin 6 =>
-      Fin.append ![e K 1,f K (nextOne 1),f K (nextTwo 1)]
-        ![f K 1,e K (nextOne 1),e K (nextTwo 1)] r s).det = 1
-    let σ : Equiv.Perm (Fin 6) := Equiv.swap (2 : Fin 6) 4 * Equiv.swap (2 : Fin 6) 3 * Equiv.swap (0 : Fin 6) 5 * Equiv.swap (0 : Fin 6) 1
-    have hsign : Equiv.Perm.sign σ = 1 := by
-      simp [σ, Equiv.Perm.sign_swap']
-    have hM : (Matrix.of fun r s : Fin 6 =>
-        Fin.append ![e K 1,f K (nextOne 1),f K (nextTwo 1)]
-          ![f K 1,e K (nextOne 1),e K (nextTwo 1)] r s) =
-        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
-      ext r s
-      fin_cases r <;>
-        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
-          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
-    rw [hM, Matrix.det_permute, hsign]
-    simp
-  · simp only [q, p, wedge3, ambientPairing_ιMulti]
-    change (Matrix.of fun r s : Fin 6 =>
-      Fin.append ![e K 1,f K (nextOne 2),f K (nextTwo 2)]
-        ![f K 2,e K (nextOne 1),e K (nextTwo 1)] r s).det = 1
-    let σ : Equiv.Perm (Fin 6) := Equiv.swap (0 : Fin 6) 5 * Equiv.swap (2 : Fin 6) 4 * Equiv.swap (0 : Fin 6) 3 * Equiv.swap (0 : Fin 6) 1
-    have hsign : Equiv.Perm.sign σ = 1 := by
-      simp [σ, Equiv.Perm.sign_swap']
-    have hM : (Matrix.of fun r s : Fin 6 =>
-        Fin.append ![e K 1,f K (nextOne 2),f K (nextTwo 2)]
-          ![f K 2,e K (nextOne 1),e K (nextTwo 1)] r s) =
-        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
-      ext r s
-      fin_cases r <;>
-        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
-          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
-    rw [hM, Matrix.det_permute, hsign]
-    simp
-  · simp only [q, p, wedge3, ambientPairing_ιMulti]
-    change (Matrix.of fun r s : Fin 6 =>
-      Fin.append ![e K 2,f K (nextOne 0),f K (nextTwo 0)]
-        ![f K 0,e K (nextOne 2),e K (nextTwo 2)] r s).det = 1
-    let σ : Equiv.Perm (Fin 6) := Equiv.swap (1 : Fin 6) 0 * Equiv.swap (0 : Fin 6) 5 * Equiv.swap (1 : Fin 6) 4 * Equiv.swap (0 : Fin 6) 2
-    have hsign : Equiv.Perm.sign σ = 1 := by
-      simp [σ, Equiv.Perm.sign_swap']
-    have hM : (Matrix.of fun r s : Fin 6 =>
-        Fin.append ![e K 2,f K (nextOne 0),f K (nextTwo 0)]
-          ![f K 0,e K (nextOne 2),e K (nextTwo 2)] r s) =
-        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
-      ext r s
-      fin_cases r <;>
-        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
-          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
-    rw [hM, Matrix.det_permute, hsign]
-    simp
-  · simp only [q, p, wedge3, ambientPairing_ιMulti]
-    change (Matrix.of fun r s : Fin 6 =>
-      Fin.append ![e K 2,f K (nextOne 1),f K (nextTwo 1)]
-        ![f K 1,e K (nextOne 2),e K (nextTwo 2)] r s).det = 1
-    let σ : Equiv.Perm (Fin 6) := Equiv.swap (0 : Fin 6) 4 * Equiv.swap (0 : Fin 6) 3 * Equiv.swap (1 : Fin 6) 5 * Equiv.swap (0 : Fin 6) 2
-    have hsign : Equiv.Perm.sign σ = 1 := by
-      simp [σ, Equiv.Perm.sign_swap']
-    have hM : (Matrix.of fun r s : Fin 6 =>
-        Fin.append ![e K 2,f K (nextOne 1),f K (nextTwo 1)]
-          ![f K 1,e K (nextOne 2),e K (nextTwo 2)] r s) =
-        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
-      ext r s
-      fin_cases r <;>
-        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
-          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
-    rw [hM, Matrix.det_permute, hsign]
-    simp
-  · simp only [q, p, wedge3, ambientPairing_ιMulti]
-    change (Matrix.of fun r s : Fin 6 =>
-      Fin.append ![e K 2,f K (nextOne 2),f K (nextTwo 2)]
-        ![f K 2,e K (nextOne 2),e K (nextTwo 2)] r s).det = 1
-    let σ : Equiv.Perm (Fin 6) := Equiv.swap (1 : Fin 6) 5 * Equiv.swap (0 : Fin 6) 4 * Equiv.swap (1 : Fin 6) 3 * Equiv.swap (0 : Fin 6) 2
-    have hsign : Equiv.Perm.sign σ = 1 := by
-      simp [σ, Equiv.Perm.sign_swap']
-    have hM : (Matrix.of fun r s : Fin 6 =>
-        Fin.append ![e K 2,f K (nextOne 2),f K (nextTwo 2)]
-          ![f K 2,e K (nextOne 2),e K (nextTwo 2)] r s) =
-        (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
-      ext r s
-      fin_cases r <;>
-        simp [σ, Equiv.swap_apply_def, Matrix.submatrix, Matrix.one_apply, Fin.append, Fin.addCases,
-          e, f, basisVector, eIndex, fIndex, nextOne, nextTwo, Pi.single_apply, eq_comm]
-    rw [hM, Matrix.det_permute, hsign]
-    simp
+  let rotateE : Equiv.Perm (Fin 6) := Equiv.swap 1 2 * Equiv.swap 0 2
+  let rotateF : Equiv.Perm (Fin 6) := Equiv.swap 4 5 * Equiv.swap 3 5
+  let shuffle : Equiv.Perm (Fin 6) := Equiv.swap 2 5 * Equiv.swap 1 4
+  let σ := rotateE ^ i.val * rotateF ^ j.val * shuffle
+  have hsign : Equiv.Perm.sign σ = 1 := by
+    simp [σ, rotateE, rotateF, shuffle, Equiv.Perm.sign_swap']
+  have hrow : ∀ (x y : Fin 3) (r : Fin 6),
+      Fin.append ![eIndex x, fIndex (nextOne y), fIndex (nextTwo y)]
+        ![fIndex y, eIndex (nextOne x), eIndex (nextTwo x)] r =
+      (rotateE ^ x.val * rotateF ^ y.val * shuffle) r := by
+    dsimp only [rotateE, rotateF, shuffle]
+    decide
+  have hvector (r : Fin 6) :
+      Fin.append ![e K i, f K (nextOne j), f K (nextTwo j)]
+        ![f K j, e K (nextOne i), e K (nextTwo i)] r =
+      basisVector K (Fin.append ![eIndex i, fIndex (nextOne j), fIndex (nextTwo j)]
+        ![fIndex j, eIndex (nextOne i), eIndex (nextTwo i)] r) := by
+    refine Fin.addCases (m := 3) (n := 3) ?_ ?_ r
+    · intro t
+      rw [Fin.append_left, Fin.append_left]
+      fin_cases t <;> rfl
+    · intro t
+      rw [Fin.append_right, Fin.append_right]
+      fin_cases t <;> rfl
+  have hM : (Matrix.of fun r s : Fin 6 =>
+      Fin.append ![e K i, f K (nextOne j), f K (nextTwo j)]
+        ![f K j, e K (nextOne i), e K (nextTwo i)] r s) =
+      (1 : Matrix (Fin 6) (Fin 6) K).submatrix σ id := by
+    ext r s
+    change Fin.append ![e K i, f K (nextOne j), f K (nextTwo j)]
+      ![f K j, e K (nextOne i), e K (nextTwo i)] r s = (1 : Matrix (Fin 6) (Fin 6) K) (σ r) s
+    rw [hvector, hrow, Matrix.one_apply]
+    simp [σ, basisVector, Pi.single_apply, eq_comm]
+  simp only [q, p, wedge3, ambientPairing_ιMulti]
+  rw [hM, Matrix.det_permute, hsign]
+  simp
 
 /-- Full exterior mixed Gram matrix: it is the trace pairing, not the entrywise pairing. -/
 @[simp] theorem ambientPairing_q_p (i j k l : Fin 3) :

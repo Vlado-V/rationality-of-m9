@@ -58,6 +58,71 @@ theorem entry_hitchin_normal_last (c : K) (S : Matrix (Fin 3) (Fin 3) K) (i j : 
     LinearMap.smul_apply]
   simp [component_bb_last, component_bq_last, component_qb_last, component_qq_last]
 
+private theorem sum_delta_mul (a : Fin 3) (F : Fin 3 → K) :
+    (∑ x : Fin 3, (if x = a then (1 : K) else 0) * F x) = F a := by
+  simp only [ite_mul, one_mul, zero_mul, Finset.sum_ite_eq',
+    Finset.mem_univ, ite_true]
+
+private theorem sum_delta_pair (a b : Fin 3) (F : Fin 3 → Fin 3 → K) :
+    (∑ x : Fin 3, ∑ y : Fin 3,
+      ((if x = a then (1 : K) else 0) * (if y = b then 1 else 0)) * F x y) = F a b := by
+  calc
+    _ = ∑ x : Fin 3, (if x = a then (1 : K) else 0) *
+        (∑ y : Fin 3, (if y = b then 1 else 0) * F x y) := by
+      simp only [Finset.mul_sum, mul_assoc]
+    _ = _ := by simp only [sum_delta_mul K]
+
+private theorem epsilon_as_deltas (i a c : Fin 3) :
+    epsilon K i a c =
+      (if a = nextOne i then (1 : K) else 0) * (if c = nextTwo i then 1 else 0) -
+      (if a = nextTwo i then (1 : K) else 0) * (if c = nextOne i then 1 else 0) := by
+  rw [← MukaiQuarticBlockSigns.epsilon_interior K i a c]
+  simp only [eq_comm]
+
+private theorem sum_epsilon_pair (i : Fin 3) (F : Fin 3 → Fin 3 → K) :
+    (∑ a : Fin 3, ∑ c : Fin 3, epsilon K i a c * F a c) =
+      F (nextOne i) (nextTwo i) - F (nextTwo i) (nextOne i) := by
+  simp only [epsilon_as_deltas K, sub_mul, Finset.sum_sub_distrib, sum_delta_pair K]
+
+private theorem epsilon_swap_last (a b c : Fin 3) :
+    epsilon K a b c = -epsilon K a c b := by
+  simp [epsilon, blockMatrix, Matrix.det_fin_three]
+  ring
+
+private theorem epsilon_rotate (a b c : Fin 3) :
+    epsilon K a b c = epsilon K b c a := by
+  simp [epsilon, blockMatrix, Matrix.det_fin_three]
+  ring
+
+private theorem adjugate_eq_cyclic_minor (S : Matrix (Fin 3) (Fin 3) K) (i j : Fin 3) :
+    S.adjugate j i =
+      S (nextOne i) (nextOne j) * S (nextTwo i) (nextTwo j) -
+      S (nextOne i) (nextTwo j) * S (nextTwo i) (nextOne j) := by
+  fin_cases i <;> fin_cases j <;>
+    norm_num [Matrix.adjugate_fin_three, nextOne, nextTwo] <;> ring
+
+/-- Contract each alternating pair before evaluating the cyclic minor. -/
+private theorem epsilon_cofactor_sum (S : Matrix (Fin 3) (Fin 3) K) (i j : Fin 3) :
+    (∑ a : Fin 3, ∑ b : Fin 3, S a b *
+      (∑ c : Fin 3, ∑ d : Fin 3, S c d * (epsilon K i c a * epsilon K d j b))) =
+        -(2 * S.adjugate j i) := by
+  calc
+    _ = ∑ a : Fin 3, ∑ b : Fin 3, ∑ c : Fin 3, ∑ d : Fin 3,
+        epsilon K i a c * (epsilon K j b d * -(S a b * S c d)) := by
+      simp only [Finset.mul_sum]
+      refine Finset.sum_congr rfl fun a _ => Finset.sum_congr rfl fun b _ =>
+        Finset.sum_congr rfl fun c _ => Finset.sum_congr rfl fun d _ => ?_
+      rw [epsilon_swap_last K i c a, epsilon_rotate K d j b]
+      ring
+    _ = ∑ a : Fin 3, ∑ c : Fin 3, epsilon K i a c *
+        (∑ b : Fin 3, ∑ d : Fin 3, epsilon K j b d * -(S a b * S c d)) := by
+      simp only [Finset.mul_sum]
+      refine Finset.sum_congr rfl fun a _ => ?_
+      exact Finset.sum_comm
+    _ = _ := by
+      simp only [sum_epsilon_pair K, adjugate_eq_cyclic_minor K]
+      ring
+
 theorem entry_hitchin_normal_cross (c : K) (S : Matrix (Fin 3) (Fin 3) K) (i j : Fin 3) :
     entry K (eIndex i) (fIndex j) (hitchinOperator K (normal K c S)) = -2 * S.adjugate j i := by
   rw [entry_hitchin_component]
@@ -69,9 +134,7 @@ theorem entry_hitchin_normal_cross (c : K) (S : Matrix (Fin 3) (Fin 3) K) (i j :
     LinearMap.smul_apply]
   simp [component_bb_cross, component_bq_cross, component_qb_cross, component_qq_cross,
     smul_eq_mul]
-  fin_cases i <;> fin_cases j <;>
-    norm_num [Matrix.adjugate_fin_three, Fin.sum_univ_succ, epsilon, blockMatrix,
-      Matrix.det_fin_three] <;> ring
+  exact epsilon_cofactor_sum K S i j
 
 theorem entry_hitchin_normal (c : K) (S : Matrix (Fin 3) (Fin 3) K) (i j : Fin 6) :
     entry K i j (hitchinOperator K (normal K c S)) = normalEntry K S i j := by
