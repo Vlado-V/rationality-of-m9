@@ -210,23 +210,50 @@ theorem diagonal_sum : (∑ i : Fin 3, TetrahedralGroup.diagonal i.castSucc) =
 /-- Every choice of three of the four points is linearly independent. -/
 theorem diagonal_triple_independent (f : Fin 3 → Fin 4) (hf : Function.Injective f) :
     LinearIndependent ℂ (fun i => TetrahedralGroup.diagonal (f i)) := by
-  apply Matrix.linearIndependent_cols_of_det_ne_zero
-    (A := fun i j => TetrahedralGroup.diagonal (f j) i)
-  have hdet : ∀ (a b c : Fin 4), a ≠ b → a ≠ c → b ≠ c →
-      Matrix.det (fun i j : Fin 3 => TetrahedralGroup.diagonal (![a,b,c] j) i) ≠ 0 := by
-    intro a b c hab hac hbc
-    rw [Matrix.det_fin_three]
-    fin_cases a <;> fin_cases b <;> fin_cases c <;>
-      simp_all [TetrahedralGroup.diagonal,TetrahedralGroup.diagonalQ] <;>
-      norm_num
-  have hfun : f = ![f 0,f 1,f 2] := by
-    funext i
-    fin_cases i <;> rfl
-  rw [hfun]
-  apply hdet
-  · exact hf.ne (by decide)
-  · exact hf.ne (by decide)
-  · exact hf.ne (by decide)
+  classical
+  have hfirst : LinearIndependent ℂ (fun i : Fin 3 => TetrahedralGroup.diagonal i.castSucc) := by
+    apply Matrix.linearIndependent_cols_of_det_ne_zero (A := standardFrameMatrix)
+    rw [det_standardFrameMatrix]
+    norm_num
+  have hnonsurj : ¬ Function.Surjective f := by
+    intro h
+    have hcard : 4 ≤ 3 := by
+      simpa only [Fintype.card_fin] using Fintype.card_le_of_surjective f h
+    exact (by decide : ¬ 4 ≤ 3) hcard
+  obtain ⟨missing, hmissing⟩ := not_forall.mp
+    (show ¬ ∀ k : Fin 4, ∃ i, f i = k from hnonsurj)
+  apply Fintype.linearIndependent_iff.mpr
+  intro c hc i
+  let d := Function.extend f c (fun _ => 0)
+  have h_at (j : Fin 3) : d (f j) = c j := hf.extend_apply c _ j
+  have h_off (k : Fin 4) (hk : ¬ ∃ j, f j = k) : d k = 0 :=
+    Function.extend_apply' c _ k hk
+  have hsum : (∑ k : Fin 4, d k • TetrahedralGroup.diagonal k) = 0 := by
+    calc
+      _ = ∑ k ∈ Finset.univ.image f, d k • TetrahedralGroup.diagonal k := by
+        symm
+        refine Finset.sum_subset (Finset.subset_univ _) ?_
+        intro k _ hk
+        have h : ¬ ∃ j, f j = k := by
+          simpa only [Finset.mem_image, Finset.mem_univ, true_and] using hk
+        rw [h_off k h, zero_smul]
+      _ = ∑ j : Fin 3, c j • TetrahedralGroup.diagonal (f j) := by
+        rw [Finset.sum_image hf.injOn]
+        simp only [h_at]
+      _ = 0 := hc
+  have hdifferences :
+      (∑ j : Fin 3, (d j.castSucc - d 3) • TetrahedralGroup.diagonal j.castSucc) = 0 := by
+    rw [Fin.sum_univ_castSucc] at hsum
+    simp only [sub_smul, Finset.sum_sub_distrib, ← Finset.smul_sum,
+      diagonal_sum, smul_neg, sub_neg_eq_add]
+    exact hsum
+  have hsame : ∀ k : Fin 4, d k = d 3 := by
+    intro k
+    rcases Fin.eq_castSucc_or_eq_last k with ⟨j, rfl⟩ | hk
+    · exact sub_eq_zero.mp ((Fintype.linearIndependent_iff.mp hfirst) _ hdifferences j)
+    · simpa only [show Fin.last 3 = (3 : Fin 4) from rfl] using congrArg d hk
+  have hd3 : d 3 = 0 := (hsame missing).symm.trans (h_off missing hmissing)
+  exact (h_at i).symm.trans ((hsame (f i)).trans hd3)
 
 /-- The first three frame vectors form a genuine vector-space basis. -/
 def standardBasis : Module.Basis (Fin 3) ℂ Vec3 :=
