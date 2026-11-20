@@ -1,7 +1,7 @@
 module
 
 public import M9StacksIntegration.FiberedCommonStageRefinement
-public import StacksFrontier.AlgebraicGeometry.Quot.CurvesLimitPreservingUnconditional
+public import StacksFrontier.AlgebraicGeometry.Quot.CurvesLimitPreservingOfCharts
 
 /-! Actual native curve-family choices admit a common later-stage source.
 The genuine unconditional Stacks0D55 theorem supplies fullness. No limit

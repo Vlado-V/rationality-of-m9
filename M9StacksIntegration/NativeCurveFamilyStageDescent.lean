@@ -1,6 +1,6 @@
 module
 
-public import StacksFrontier.AlgebraicGeometry.Quot.CurvesLimitPreservingUnconditional
+public import StacksFrontier.AlgebraicGeometry.Quot.CurvesLimitPreservingOfCharts
 public import StacksFrontier.AlgebraicGeometry.Stacks.LimitPreservingStageDescent
 public import M9StacksIntegration.NativeRelativeAffineRebase
 
