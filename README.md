@@ -18,7 +18,7 @@ The statement includes arbitrary scheme bases and families with algebraic-space 
 
 ## Build
 
-Use Lean `v4.35.0` and the committed Lake manifest. The pinned dependencies are Mathlib `56a005855ea17e0b0958f73ec801ae140b0a1679` and [Vlado-V/Stacks](https://github.com/Vlado-V/Stacks/tree/f942eec65ba2ae5835b718bc81f124c8ceca02a6) `f942eec65ba2ae5835b718bc81f124c8ceca02a6`, based on AxiomMath/Stacks `c496df0d9beea9deaeabcea8492605f9a0a2313b`.
+Use Lean `v4.35.0` and the committed Lake manifest. The pinned dependencies are Mathlib `56a005855ea17e0b0958f73ec801ae140b0a1679` and [Vlado-V/Stacks](https://github.com/Vlado-V/Stacks/tree/811b211583555bb55f3b699cd799e3bd7338366c) `811b211583555bb55f3b699cd799e3bd7338366c`, based on AxiomMath/Stacks `c496df0d9beea9deaeabcea8492605f9a0a2313b`.
 
 ```sh
 lake exe cache get
