@@ -10,7 +10,7 @@ rev = "56a005855ea17e0b0958f73ec801ae140b0a1679"
 [[require]]
 name = "Stacks"
 git = "https://github.com/Vlado-V/Stacks"
-rev = "acfcfe438edb5753bc45559c7d88e755b0a30856"
+rev = "92bd720abe6426b73a228258c82e1c9c1e49d6bd"
 
 [[lean_lib]]
 name = "M9StacksIntegration"
@@ -23,4 +23,3 @@ name = "Challenge"
 
 [[lean_lib]]
 name = "Solution"
-needs = ["@Stacks/+StacksFrontier.RingTheory.MilnorPatching.Relative:olean"]
