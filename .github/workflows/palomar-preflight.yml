@@ -15,6 +15,7 @@ on:
         default: palomar-standard-v1
         options:
           - palomar-standard-v1
+          - palomar-namespace-16x32-v1
           - palomar-namespace-32x64-v1
 
 permissions:

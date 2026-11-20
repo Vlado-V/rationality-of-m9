@@ -1,6 +1,6 @@
 module
 
-public import M9StacksIntegration.GenusNineCoarse
+public import M9StacksIntegration.GenusNineSmoothCoarse
 public import StacksFrontier.AlgebraicGeometry.Stacks.SeparationChangeOfBase
 
 /-!
