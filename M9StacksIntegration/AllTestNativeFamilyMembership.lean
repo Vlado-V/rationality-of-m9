@@ -3,7 +3,7 @@ module
 public import M9StacksIntegration.AllTestNativeFamilyOpenReduction
 public import M9StacksIntegration.AllTestNativeSchemeGenusComparison
 public import StacksFrontier.AlgebraicGeometry.Quot.CurveFamilyFibreGenusRank
-public import StacksFrontier.AlgebraicGeometry.Quot.CurvesStableOpenUnconditional
+public import StacksFrontier.AlgebraicGeometry.Quot.CurvesStableOpenDirectH2H3
 public import StacksFrontier.AlgebraicGeometry.Quot.CurveFamilyFirstCohomologyUnconditional
 
 /-!

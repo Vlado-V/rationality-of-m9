@@ -4,11 +4,11 @@ public import M9StacksIntegration.GenusNineFiniteInertia
 public import M9StacksIntegration.GenusNineCoarsePredicates
 public import StacksFrontier.AlgebraicGeometry.Quot.CurvesIsAlgebraic
 public import StacksFrontier.AlgebraicGeometry.Quot.CurveFamilyFirstCohomologyUnconditional
-public import StacksFrontier.AlgebraicGeometry.Quot.CurvesStableOpenUnconditional
-public import StacksFrontier.AlgebraicGeometry.Quot.StableCurvesPolarizationOfDualizing
-public import StacksFrontier.AlgebraicGeometry.Quot.StableCurveFamilyTotalScheme
+public import StacksFrontier.AlgebraicGeometry.Quot.CurvesStableOpenDirectH2H3
+public import StacksFrontier.AlgebraicGeometry.Quot.CurvesDiagonalUnconditional
+public import StacksFrontier.AlgebraicGeometry.Stacks.ThickeningOpenImmersionIsomorphism
 public import StacksFrontier.AlgebraicGeometry.Quot.C1590Private.CurvesLimitPreserving
-public import StacksFrontier.AlgebraicGeometry.Quot.UniqueSmoothModelsScheme
+public import StacksFrontier.AlgebraicGeometry.Quot.C1590Private.UniqueSmoothStableModelsEtaleDvr
 public import StacksFrontier.AlgebraicGeometry.Quot.ModuliStableCurvesInCurvesDM
 public import StacksFrontier.AlgebraicGeometry.Stacks.KeelMori.KeelMoriTheorem
 public import StacksFrontier.AlgebraicGeometry.Stacks.SeparationSmallerBaseDMAndSeparated
@@ -123,31 +123,24 @@ theorem smoothStack_separated (g : ℕ) (hg : 2 ≤ g) :
   let W := curvesSmallOpenSubstack B hZ h hQ
   let f := Stack.structureMorphism B integerBase hZ (curvesAlgebraicStack B hZ h)
   let E := (curvesSmallEquivalence B hZ h).inverse
-  have hScheme : ExistsIsoOfStableModelsWith B hZ True g := by
-    intro R _ _ _ K _ _ _ hR C C_to_K hSmooth X X' p p' e e' hmodel hmodel'
-      hstable hstable' hSmoothP hSmoothP'
-    exact existsIsoOfSmoothStableModels B hZ g R K hR C_to_K hmodel hmodel'
-      hstable hstable' (hSmoothP trivial) (hSmoothP' trivial)
-  have hSmoothModels := uniqueSmoothStableModels_of
-    (stableFamilyTotalIsScheme_of B hZ g CurveFamily.exists_isRelativeDualizingSheaf_of_isPrestable)
-    hScheme
-  have hqs : Stack.AlgebraicStacks.IsQuasiSeparated B integerBase hZ (W.inclusion ≫ f) :=
-    isQuasiSeparated_curvesSmallOpenSubstack_of_stableCurvesPolarization B hZ h hQ
-      (fun F hF => (stable_of_smooth_cohomological_genus B hZ hg hF).1)
-      (stableCurvesPolarization B hZ)
+  have hSmoothModels := C1590Private.uniqueSmoothStableModels_of_etaleDvr B hZ g
+  have hqsCurves : Stack.AlgebraicStacks.IsQuasiSeparated B integerBase hZ f :=
+    Stack.AlgebraicStacks.isQuasiSeparated_of_isRelativelyFinitePresentation_relativeDiagonal
+      B integerBase hZ f
+      (isSeparated_and_isRelativelyFinitePresentation_diagonal_curves.{u, u + 1} B hZ).2
   let T : Set (Stack.AlgebraicStacks.points B integerBase hZ W.toAlgebraicStack) := Set.univ
   have hTo : @IsOpen _ (Stack.pointTopology B integerBase hZ W.toAlgebraicStack.val) T :=
     @isOpen_univ _ (Stack.pointTopology B integerBase hZ W.toAlgebraicStack.val)
   have hTd : @Dense _ (Stack.pointTopology B integerBase hZ W.toAlgebraicStack.val) T :=
     @dense_univ _ (Stack.pointTopology B integerBase hZ W.toAlgebraicStack.val)
   have hsep : Stack.AlgebraicStacks.IsSeparated B integerBase hZ (W.inclusion ≫ f) := by
-    refine Stack.OpenSubstack.isSeparated_inclusion_comp_of_denseTestUniqueness_of_isQuasiSeparated
+    refine Stack.OpenSubstack.isSeparated_inclusion_comp_of_denseTestUniqueness
       B integerBase hZ f W
       (hasPropertyOnSomeSchemeAtlas_isLocallyNoetherian_schemeStack_integerBase.{u, u + 1} B hZ)
       (Stack.AlgebraicStacks.isLocallyOfFiniteType_of_isLocallyOfFinitePresentation B integerBase hZ
         (isLocallyOfFinitePresentation_structureMorphism_curvesAlgebraicStack B hZ h
           (C1590Private.isLimitPreserving_curvesFiberedCategory B hZ)))
-      hqs T hTo hTd ?_
+      hqsCurves T hTo hTd ?_
     have hlift {U V : BigFppfOver B integerBase hZ} (a : U ⟶ V)
         {ξ η : W.toAlgebraicStack.val.val.obj} (m : ξ ⟶ η)
         (hm : W.toAlgebraicStack.val.val.p.IsHomLift a m) :=
