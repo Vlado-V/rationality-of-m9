@@ -1,0 +1,261 @@
+# Owner-run host measurement against one immutable source. No submission-server state is involved.
+# Verifier setup and command follow PalomarSubmission commit 14aa8d6b3c2f14a8540605e37144560b9a00e7e7.
+name: M9 stock 16 GiB worker diagnostics
+run-name: M9 stock 16 GiB worker diagnostics m9dw8e7e3270
+
+on:
+  push:
+    branches:
+      - diagnostic/m9-stock16-worker-8e7e32-04
+
+env:
+  PALOMAR_PIPELINE_COMMIT: 14aa8d6b3c2f14a8540605e37144560b9a00e7e7
+  PALOMAR_INPUTS: >-
+    {"repository":"Vlado-V/rationality-of-m9","commit":"8e7e3270ba53f5a5211c712373fd952c7e2679eb","pipeline_commit":"14aa8d6b3c2f14a8540605e37144560b9a00e7e7","request_id":"m9dw8e7e3270","mode":"full","execution_profile":"palomar-standard-v1","options":"{\"comparator_config_path\":\"comparator.json\",\"authorization_relationship\":\"I have approval from a responsible author or maintainer\"}"}
+
+jobs:
+  profile:
+    if: github.repository == 'Vlado-V/rationality-of-m9' && github.event.created && github.run_attempt == 1
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    outputs:
+      labels: ${{ steps.resolve.outputs.labels }}
+      timeout: ${{ steps.resolve.outputs.timeout }}
+      budget: ${{ steps.resolve.outputs.budget }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: PalomarRegistry/PalomarSubmission
+          ref: ${{ env.PALOMAR_PIPELINE_COMMIT }}
+          persist-credentials: false
+      - name: Resolve approved execution profile
+        id: resolve
+        env:
+          PALOMAR_EXECUTION_PROFILE: palomar-standard-v1
+        run: python3 scripts/verification_profile.py --resolve
+  verify:
+    needs: profile
+    runs-on: ${{ fromJSON(needs.profile.outputs.labels) }}
+    env:
+      PALOMAR_EXECUTION_PROFILE: palomar-standard-v1
+    timeout-minutes: ${{ fromJSON(needs.profile.outputs.timeout) }}
+    permissions:
+      contents: read
+    concurrency:
+      group: m9-stock16-worker-diagnostic-8e7e32-04
+      cancel-in-progress: false
+    steps:
+      - name: Record verification deadline origin
+        run: echo "PALOMAR_JOB_STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Validate pinned pipeline revision
+        env:
+          PIPELINE_COMMIT: ${{ env.PALOMAR_PIPELINE_COMMIT }}
+        run: |
+          if [[ ! "$PIPELINE_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "pipeline_commit must be a full lowercase commit SHA" >&2
+            exit 1
+          fi
+
+      - name: Checkout submission pipeline
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: PalomarRegistry/PalomarSubmission
+          ref: ${{ env.PALOMAR_PIPELINE_COMMIT }}
+          path: pipeline
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        id: python
+        with:
+          python-version: "3.11.10"
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1.321.0
+        id: ruby
+        with:
+          ruby-version: "3.3.12"
+          bundler-cache: true
+          working-directory: pipeline
+
+      - name: Install verifier dependencies
+        id: dependencies
+        run: python -m pip install --disable-pip-version-check --require-hashes --no-deps -r pipeline/requirements.txt
+
+      - name: Parse and fetch immutable source
+        id: prepare
+        env:
+          BUNDLE_GEMFILE: ${{ github.workspace }}/pipeline/Gemfile
+        run: |
+          python - <<'PYTHON'
+          import json, os, pathlib
+          path = pathlib.Path(os.environ["RUNNER_TEMP"], "submission-inputs.json")
+          path.write_text(json.dumps({"inputs": json.loads(os.environ["PALOMAR_INPUTS"])}))
+          PYTHON
+          python pipeline/scripts/verify_submission.py prepare \
+            --event "$RUNNER_TEMP/submission-inputs.json" \
+            --work-dir "$RUNNER_TEMP/palomar" \
+            --output "$RUNNER_TEMP/mechanical-report.json" \
+            --licensee "$(command -v bundle)"
+
+      - name: Free disk space
+        id: disk
+        if: steps.prepare.outputs.ready == 'true'
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+
+      - name: Check palomar-standard-v1 runner capacity
+        id: capacity
+        if: steps.prepare.outputs.ready == 'true'
+        run: >-
+          python pipeline/scripts/verify_submission.py check-capacity
+          --disk-path "$RUNNER_TEMP" --output "$RUNNER_TEMP/mechanical-report.json"
+
+      - name: Install pinned elan
+        id: elan
+        if: steps.prepare.outputs.ready == 'true'
+        run: |
+          python3 pipeline/scripts/trusted_download.py \
+            --url https://github.com/leanprover/elan/releases/download/v4.2.3/elan-x86_64-unknown-linux-gnu.tar.gz \
+            --output "$RUNNER_TEMP/elan.tar.gz" \
+            --sha256 df0b2b3a439961ffcbb3985214365ffe40f49bc871df04dff268c7d8e21ca8b2
+          mkdir "$RUNNER_TEMP/elan"
+          tar -xzf "$RUNNER_TEMP/elan.tar.gz" -C "$RUNNER_TEMP/elan"
+          "$RUNNER_TEMP/elan/elan-init" -y --no-modify-path --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      # The submitted toolchain judges the submission: its `lake comparator`,
+      # `leanexport`, `leanchecker` and bundled kernels. Nothing else is built.
+      - name: Install the submitted Lean toolchain
+        id: toolchain
+        if: steps.prepare.outputs.ready == 'true'
+        env:
+          SUBMISSION_TOOLCHAIN: ${{ steps.prepare.outputs.lean_toolchain }}
+        run: elan toolchain install "$SUBMISSION_TOOLCHAIN"
+
+      - name: Build pinned bubblewrap
+        id: bwrap
+        if: steps.prepare.outputs.ready == 'true'
+        run: |
+          sudo apt-get update -qq >/dev/null
+          sudo apt-get install -y -qq meson ninja-build libcap-dev pkg-config >/dev/null
+          echo "PALOMAR_BWRAP=$(pipeline/scripts/install_bwrap.sh "$RUNNER_TEMP/bwrap-bin")" >> "$GITHUB_ENV"
+
+      - name: Check out the host sampler
+        if: steps.prepare.outputs.ready == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          path: diagnostic
+          persist-credentials: false
+          sparse-checkout: .github/diagnostics/sample-worker.py
+          sparse-checkout-cone-mode: false
+
+      - name: Run lake comparator and challenge provenance audit
+        id: execute
+        if: steps.prepare.outputs.ready == 'true'
+        run: |
+          test "$(git -C pipeline rev-parse HEAD)" = "$PALOMAR_PIPELINE_COMMIT"
+          test "$(git -C diagnostic rev-parse HEAD)" = "$GITHUB_SHA"
+          sampler_pid_file="$RUNNER_TEMP/m9-worker-telemetry.pid"
+          sudo -n "$(command -v python3)" -I "$GITHUB_WORKSPACE/diagnostic/.github/diagnostics/sample-worker.py" \
+            --report "$RUNNER_TEMP/mechanical-report.json" \
+            --output "$RUNNER_TEMP/m9-worker-telemetry.jsonl" \
+            --pid-file "$sampler_pid_file" &
+          sampler_launcher=$!
+          stop_sampler() {
+            local sampler_pid=
+            if [[ -s "$sampler_pid_file" ]]; then
+              IFS= read -r sampler_pid < "$sampler_pid_file" || true
+            fi
+            if [[ "$sampler_pid" =~ ^[1-9][0-9]*$ ]]; then
+              sudo -n kill -TERM "$sampler_pid" 2>/dev/null || true
+            else
+              sudo -n kill -TERM "$sampler_launcher" 2>/dev/null || true
+            fi
+            wait "$sampler_launcher" || true
+          }
+          trap stop_sampler EXIT
+          python pipeline/scripts/verify_submission.py execute \
+            --work-dir "$RUNNER_TEMP/palomar" \
+            --output "$RUNNER_TEMP/mechanical-report.json" \
+            --bwrap "$PALOMAR_BWRAP" \
+            --bwrap-source-tag v0.12.0 \
+            --execution-budget-seconds "${{ needs.profile.outputs.budget }}" \
+            --workflow-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Finalize interrupted mechanical report
+        id: finalize
+        if: always()
+        env:
+          PALOMAR_STEPS: ${{ toJSON(steps) }}
+          PALOMAR_WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 pipeline/scripts/workflow_report.py finalize --report "$RUNNER_TEMP/mechanical-report.json"
+
+      - name: Upload bounded mechanical report
+        id: upload1
+        continue-on-error: true
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: owner-diagnostic-mechanical-report-m9dw8e7e3270
+          path: ${{ runner.temp }}/mechanical-report.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Wait before report upload retry 2
+        if: always() && steps.upload1.outcome == 'failure'
+        run: sleep 5
+
+      - name: Retry bounded mechanical report upload 2
+        id: upload2
+        continue-on-error: true
+        if: always() && steps.upload1.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: owner-diagnostic-mechanical-report-m9dw8e7e3270
+          path: ${{ runner.temp }}/mechanical-report.json
+          if-no-files-found: error
+          retention-days: 90
+          overwrite: true
+
+      - name: Wait before report upload retry 3
+        if: always() && steps.upload1.outcome == 'failure' && steps.upload2.outcome == 'failure'
+        run: sleep 20
+
+      - name: Retry bounded mechanical report upload 3
+        id: upload3
+        continue-on-error: true
+        if: always() && steps.upload1.outcome == 'failure' && steps.upload2.outcome == 'failure'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: owner-diagnostic-mechanical-report-m9dw8e7e3270
+          path: ${{ runner.temp }}/mechanical-report.json
+          if-no-files-found: error
+          retention-days: 90
+          overwrite: true
+
+      - name: Upload sanitized worker measurements
+        if: always() && (steps.execute.outcome == 'success' || steps.execute.outcome == 'failure')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: owner-diagnostic-worker-samples-m9dw8e7e3270
+          path: ${{ runner.temp }}/m9-worker-telemetry.jsonl
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Fail the run when verification did not pass
+        if: always()
+        env:
+          PALOMAR_STEPS: ${{ toJSON(steps) }}
+        run: python3 pipeline/scripts/workflow_report.py gate --report "$RUNNER_TEMP/mechanical-report.json"
